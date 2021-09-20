@@ -53,6 +53,9 @@ import {
     IUnspentTxOutput,
     ValidatorData,
     IPendingProposal,
+    IProposalAPI,
+    IProposalList,
+    IProposalAttachmentAPI
 } from "./Types";
 
 import bodyParser from "body-parser";
@@ -271,6 +274,9 @@ class Stoa extends WebService {
         this.app.get("/holder/:address", isBlackList, this.getBoaHolder.bind(this));
         this.app.get("/average_fee_chart", isBlackList, this.averageFeeChart.bind(this));
         this.app.get("/search/hash/:hash", isBlackList, this.searchHash.bind(this));
+        this.app.get("/proposals/", isBlackList, this.getProposals.bind(this));
+        this.app.get("/proposal/:proposal_id", isBlackList, this.getProposalById.bind(this));
+        this.app.get("/proposal_attachment/:proposal_id", isBlackList, this.getProposalAttachments.bind(this));
 
         // It operates on a private port
         this.private_app.post("/block_externalized", this.postBlock.bind(this));
@@ -855,9 +861,9 @@ class Stoa extends WebService {
         filter_type =
             req.query.type !== undefined
                 ? req.query.type
-                      .toString()
-                      .split(",")
-                      .map((m) => ConvertTypes.toDisplayTxType(m))
+                    .toString()
+                    .split(",")
+                    .map((m) => ConvertTypes.toDisplayTxType(m))
                 : [0, 1, 2, 3];
 
         if (filter_type.find((m) => m < 0) !== undefined) {
@@ -1968,7 +1974,7 @@ class Stoa extends WebService {
                     if (updated)
                         logger.info(
                             `Update a blockHeader : ${block_header.toString()}, ` +
-                                `block height : ${block_header.height.toString()}`,
+                            `block height : ${block_header.height.toString()}`,
                             {
                                 operation: Operation.db,
                                 height: block_header.height.toString(),
@@ -1979,7 +1985,7 @@ class Stoa extends WebService {
                     if (put)
                         logger.info(
                             `puts a blockHeader history : ${block_header.toString()}, ` +
-                                `block height : ${block_header.height.toString()}`,
+                            `block height : ${block_header.height.toString()}`,
                             {
                                 operation: Operation.db,
                                 height: block_header.height.toString(),
@@ -2006,9 +2012,8 @@ class Stoa extends WebService {
                     if (changes)
                         logger.info(
                             `Saved a pre-image utxo : ${pre_image.utxo.toString().substr(0, 18)}, ` +
-                                `hash : ${pre_image.hash.toString().substr(0, 18)}, pre-image height : ${
-                                    pre_image.height
-                                }`,
+                            `hash : ${pre_image.hash.toString().substr(0, 18)}, pre-image height : ${pre_image.height
+                            }`,
                             {
                                 operation: Operation.db,
                                 height: HeightManager.height.toString(),
@@ -2291,6 +2296,51 @@ class Stoa extends WebService {
             return resolve(blockTransactions);
         });
     }
+
+    /**
+     * GET /proposal Attachments
+     * Called when a request is received through the `proposal/attachment/:proposalID` handler
+     * Returns a proposal attachments based on proposal ID
+     */
+    private getProposalAttachments(req: express.Request, res: express.Response) {
+        const proposal_id = req.params.proposal_id;
+        if (proposal_id.trim().length === 0) {
+            res.status(400).send(`Parameter proposal id must be set.`);
+            return;
+        }
+        else {
+            this.ledger_storage.getPropsalAttachments(proposal_id)
+                .then((result) => {
+                    if (result === undefined) {
+                        return res.status(204).send(`The data does not exist.`);
+                    }
+                    else {
+                        const proposalAttachments: IProposalAttachmentAPI = {
+                            starting_time: result.proposalData[0].startTime,
+                            ending_time: result.proposalData[0].endTime,
+                            evaluation_score: result.proposalData[0].avgScore,
+                            attachment_url: result.url,
+                            proposer_wallet_address: result.proposalData[0].proposerWalletAddress,
+                            wallet_address_deposit: result.proposalData[0].walletAddressToDeposit,
+                            voting_hash: new Hash(result.proposalData[0].votingFeeHash, Endian.Little).toString(),
+                            proposing_hash: new Hash(result.proposalData[0].proposalFeeHash, Endian.Little).toString(),
+
+                        };
+                        return res.status(200).send(JSON.stringify(proposalAttachments));
+                    }
+                })
+                .catch((err) => {
+                    logger.error("Failed to data lookup to the DB: " + err, {
+                        operation: Operation.db,
+                        height: HeightManager.height.toString(),
+                        status: Status.Error,
+                        responseTime: Number(moment().utc().unix() * 1000),
+                    });
+                    return res.status(500).send("Failed to data lookup");
+                });
+        }
+    }
+
     /* Get BOA Holders
      * @returns Returns BOA Holders of the ledger.
      */
@@ -2468,6 +2518,93 @@ class Stoa extends WebService {
                         value: 0,
                     };
                     return res.status(200).send(JSON.stringify(holder));
+                }
+            })
+            .catch((err) => {
+                logger.error("Failed to data lookup to the DB: " + err, {
+                    operation: Operation.db,
+                    height: HeightManager.height.toString(),
+                    status: Status.Error,
+                    responseTime: Number(moment().utc().unix() * 1000),
+                });
+                return res.status(500).send("Failed to data lookup");
+            });
+    }
+
+    /* Get all proposals
+     * @returns Returns proposals of the ledger.
+     */
+    public async getProposals(req: express.Request, res: express.Response) {
+        const pagination: IPagination = await this.paginate(req, res);
+        this.ledger_storage
+            .getProposals(pagination.pageSize, pagination.page)
+            .then((data: any[]) => {
+                if (data.length === 0) {
+                    return res.status(204).send(`The data does not exist.`);
+                } else {
+                    let proposals: IProposalList[] = [];
+                    for (const row of data) {
+                        proposals.push({
+                            proposal_id: row.proposal_id,
+                            proposal_title: row.proposal_title,
+                            proposal_type: row.proposal_type,
+                            fund_amount: row.fund_amount,
+                            vote_start_height: row.vote_start_height,
+                            vote_end_height: row.vote_end_height,
+                            proposal_status: row.proposal_status,
+                            proposal_date: row.submit_time,
+                            proposer_name: row.proposer_name,
+                            full_count: row.full_count
+                        })
+                    }
+                    return res.status(200).send(JSON.stringify(proposals));
+                }
+            })
+            .catch((err) => {
+                logger.error("Failed to data lookup to the DB: " + err, {
+                    operation: Operation.db,
+                    height: HeightManager.height.toString(),
+                    status: Status.Error,
+                    responseTime: Number(moment().utc().unix() * 1000),
+                });
+                return res.status(500).send("Failed to data lookup");
+            });
+    }
+
+    /* Get proposal by id
+     * @returns Returns proposal of the ledger.
+     */
+    public async getProposalById(req: express.Request, res: express.Response) {
+        const proposal_id: string = String(req.params.proposal_id);
+        if (proposal_id.trim().length === 0) {
+            res.status(400).send(`Parameter proposal id must be set.`);
+            return;
+        }
+        this.ledger_storage
+            .getProposalById(proposal_id)
+            .then((data: any[]) => {
+                if (data.length === 0) {
+                    return res.status(204).send(`The data does not exist.`);
+                } else {
+                    let proposal: IProposalAPI =
+                    {
+                        proposal_title: data[0].proposal_title,
+                        proposal_id: data[0].proposal_id,
+                        detail: data[0].detail,
+                        proposal_tx_hash: new Hash(data[0].tx_hash, Endian.Little).toString(),
+                        proposal_fee_tx_hash: new Hash(data[0].proposal_fee_tx_hash, Endian.Little).toString(),
+                        proposer_name: data[0].proposer_name,
+                        fund_amount: data[0].fund_amount,
+                        proposal_fee: data[0].proposal_fee,
+                        proposal_type: ConvertTypes.ProposalTypetoString(data[0].proposal_type),
+                        vote_start_height: data[0].vote_start_height,
+                        voting_start_date: data[0].voting_start_date,
+                        vote_end_height: data[0].vote_end_height,
+                        voting_end_date: data[0].voting_end_date,
+                        proposal_status: data[0].proposal_status,
+                        proposal_date: data[0].submit_time
+                    }
+                    return res.status(200).send(JSON.stringify(proposal));
                 }
             })
             .catch((err) => {

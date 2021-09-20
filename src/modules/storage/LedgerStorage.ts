@@ -2094,6 +2094,47 @@ export class LedgerStorage extends Storages {
     }
 
     /**
+     * Get proposal attachment
+     * @param proposalID Send proposal Attachments for a given proposal ID
+     * @returns Returns the Promise. If it is finished successfully the `.then`
+     * of the returned Promise is called with the records
+     * and if an error occurs the `.catch` is called with an error.
+     */
+    public getPropsalAttachments(proposalID: string): Promise<any> {
+        const sql = `SELECT T1.pre_evaluation_start_time as startTime,
+                            T1.pre_evaluation_end_time as endTime,
+                            T1.ave_pre_evaluation_score as avgScore,
+                            T1.voting_fee_hash as votingFeeHash,
+                            T2.proposer_address as proposerWalletAddress,
+                            T2.proposal_fee_address as walletAddressToDeposit,
+                            T2.proposal_fee_tx_hash as proposalFeeHash
+
+                            FROM
+                                proposal_metadata T1
+                                INNER JOIN proposal T2 ON (T1.proposal_id = T2.proposal_id)
+
+                            WHERE T1.proposal_id= ?`;
+
+        const urls = `SELECT url
+                        FROM proposal_attachments
+                        WHERE proposal_id=?`;
+
+        const result: any = {};
+        return new Promise<any>((resolve, reject) => {
+            this.query(sql, [proposalID.toString()])
+                .then((rows: any) => {
+                    result.proposalData = rows;
+                    return this.query(urls, [proposalID.toString()]);
+                })
+                .then((rows: any[]) => {
+                    result.url = rows;
+                    resolve(result);
+                })
+                .catch(reject);
+        });
+    }
+
+    /**
      * Get validators
      * @param height If present, the height at which the returned list of
      * validators will apply. If absent, the highest height this stoa
@@ -3530,6 +3571,65 @@ export class LedgerStorage extends Storages {
                 return reject(err);
             }
         });
+    }
+
+    /**
+     * Get proposal list
+     * @param limit Maximum record count that can be obtained from one query
+     * @param page The number on the page, this value begins with 1
+     * @returns returns the Promise with requested data
+     * and if an error occurs the .catch is called with an error.
+     */
+    public getProposals(limit: number, page: number): Promise<any[]> {
+        const sql = `
+                SELECT 
+                    P.proposal_id,
+                    P.proposal_title,
+                    P.proposal_type,
+                    P.fund_amount,
+                    P.vote_start_height,
+                    P.vote_end_height,
+                    P.proposal_status,
+                    M.submit_time,
+                    M.proposer_name,
+                    count(*) OVER() AS full_count
+                    FROM proposal P
+                    INNER JOIN proposal_metadata M
+                    ON(P.proposal_id = M.proposal_id)
+                    LIMIT ? OFFSET ?
+            `;
+        return this.query(sql, [limit, limit * (page - 1)]);
+    }
+
+    /**
+     * Get proposal by proposal_id
+     * @param proposal_id Id of the requested proposal
+     * @returns returns the Promise with requested data
+     * and if an error occurs the .catch is called with an error.
+     */
+    public getProposalById(proposal_id: string): Promise<any> {
+        const sql = `
+                SELECT P.proposal_title, 
+                    P.proposal_id,
+                    M.detail,
+                    P.tx_hash,
+                    P.proposal_fee_tx_hash,
+                    M.proposer_name,
+                    P.fund_amount,
+                    P.proposal_fee,
+                    P.proposal_type,
+                    P.vote_start_height,
+                    M.voting_start_date,
+                    P.vote_end_height,
+                    M.voting_end_date,
+                    M.submit_time,
+                    P.proposal_status
+                FROM proposal P 
+                INNER JOIN proposal_metadata M
+                ON (P.proposal_id = M.proposal_id)
+                WHERE P.proposal_id = ?
+            `;
+        return this.query(sql, [proposal_id]);
     }
 
     /**
