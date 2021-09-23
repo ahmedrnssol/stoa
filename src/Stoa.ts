@@ -968,7 +968,7 @@ class Stoa extends WebService {
 
                 for (const elem of data.receivers)
                     overview.receivers.push({
-                        type: elem.type,
+                        type: ConvertTypes.TxTypeToString(elem.type),
                         address: elem.address,
                         lock_type: elem.lock_type,
                         amount: elem.amount,
@@ -1183,7 +1183,7 @@ class Stoa extends WebService {
                             height: JSBI.BigInt(row.block_height).toString(),
                             tx_hash: new Hash(row.tx_hash, Endian.Little).toString(),
                             amount: row.amount,
-                            type: row.type,
+                            type: ConvertTypes.TxTypeToString(row.receiver[0].type),
                             fee: row.tx_fee,
                             size: row.tx_size,
                             time: row.time_stamp,
@@ -1775,7 +1775,7 @@ class Stoa extends WebService {
                     transactionList.push({
                         height: JSBI.BigInt(row.block_height).toString(),
                         tx_hash: new Hash(row.tx_hash, Endian.Little).toString(),
-                        type: row.type,
+                        type: ConvertTypes.TxTypeToString(row.type),
                         amount: JSBI.BigInt(row.amount).toString(),
                         tx_fee: JSBI.BigInt(row.tx_fee).toString(),
                         tx_size: JSBI.BigInt(row.tx_size).toString(),
@@ -2361,6 +2361,7 @@ class Stoa extends WebService {
         switch (filter) {
             case "D": {
                 filter_begin = filter_end.unix() - 86400;
+                filter = "H";
                 break;
             }
             case "5D": {
@@ -2370,6 +2371,7 @@ class Stoa extends WebService {
             }
             case "M": {
                 filter_begin = filter_end.unix() - 2592000;
+                filter = "D";
                 break;
             }
             case "3M": {
@@ -2384,6 +2386,12 @@ class Stoa extends WebService {
             }
             case "Y": {
                 filter_begin = filter_end.unix() - 31536000;
+                filter = "M";
+                break;
+            }
+            case "3Y": {
+                filter_begin = filter_end.unix() - 94694400;
+                filter = "Y";
                 break;
             }
             case "5Y": {
@@ -2592,6 +2600,7 @@ class Stoa extends WebService {
         switch (filter) {
             case "D": {
                 filter_begin = filter_end.unix() - 86400;
+                filter = "H";
                 break;
             }
             case "5D": {
@@ -2601,6 +2610,7 @@ class Stoa extends WebService {
             }
             case "M": {
                 filter_begin = filter_end.unix() - 2592000;
+                filter = "D";
                 break;
             }
             case "3M": {
@@ -2615,6 +2625,12 @@ class Stoa extends WebService {
             }
             case "Y": {
                 filter_begin = filter_end.unix() - 31536000;
+                filter = "M";
+                break;
+            }
+            case "3Y": {
+                filter_begin = filter_end.unix() - 94694400;
+                filter = "Y";
                 break;
             }
             case "5Y": {

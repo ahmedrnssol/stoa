@@ -430,7 +430,7 @@ export interface ITxOverviewOutputElement {
     /**
      * Output type
      */
-    type: number;
+    type: string;
 
     /**
      * Address, Public key
@@ -560,9 +560,9 @@ export enum DisplayTxType {
  * Class that converts various enum values into strings
  */
 export class ConvertTypes {
-    static tx_types: string[] = ["payment", "freeze"];
-    static proposal_types: string[] = ["system", "fund"];
-    static display_tx_type: string[] = ["inbound", "outbound", "freeze", "payload"];
+    static tx_types: string[] = ["Payment", "Freeze", "Reward"];
+    static proposal_types: string[] = ["System", "Fund"];
+    static display_tx_type: string[] = ["Inbound", "Outbound", "Freeze", "Payload", "Reward"];
 
     public static DisplayTxTypeToString(type: OutputType): string {
         if (type < ConvertTypes.display_tx_type.length) return ConvertTypes.display_tx_type[type];
