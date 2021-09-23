@@ -96,15 +96,15 @@ describe("Test of Stoa API Server", () => {
     before("Start TestStoa", async () => {
         await stoa_server.start();
         await stoa_server.voteraService?.stop();
-        await stoa_server.voteraService?.start(stoa_server, 1);
+        await stoa_server.voteraService?.start(stoa_server,1);
         return;
     });
 
     after("Stop Stoa and Agora server instances", async () => {
         await stoa_server.voteraService?.stop();
         await stoa_server.ledger_storage.dropTestDB(testDBConfig.database);
-        await votera_server.stop();
         await stoa_server.stop();
+        await votera_server.stop();
         await gecko_server.stop();
         await agora_server.stop();
     });
@@ -992,8 +992,27 @@ describe("Test of Stoa API Server", () => {
                 }
             ]
         }
-        await delay(500);
         assert.deepStrictEqual(data, expected);
+        await delay(500);
+    });
+    it("Test of the path /proposal/attachment with proposal Id", async () => {
+        const uri = URI(stoa_addr)
+            .directory("/proposal_attachment/")
+            .filename("ID1234567890");
+        const response = await client.get(uri.toString());
+        const expected={
+            starting_Time:  moment("2021-08-18").utc().unix(),
+            ending_Time:  moment("2021-08-18").utc().unix(),
+            evaluation_Score: 7,
+            attachment_URL: [
+                {"url":"https://s3.ap-northeast-2.amazonaws.com/com.kosac.defora.beta.upload-image/BOASCAN_Requirements_Documentation_Version1_0_EN_copy_fb69a8a7d5.pdf"}
+            ],
+            proposer_Wallet_Address: "boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67",
+            wallet_Address_toDeposit: "boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67",
+            votingHash: "0x8b6a2e1ecc3616ad63c73d606c4019407ebfd06a122519e7bd88d99af92d19d9621323d7c2e68593053a570522b6bc8575d1ee45a74ee38726f297a5ce08e33d",
+            proposing_Hash: "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          };
+        assert.deepStrictEqual(response.data, expected);
     });
 
     it("Test for path /proposals", async () => {

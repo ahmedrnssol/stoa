@@ -27,12 +27,15 @@ $ npm ci
 
 # Usage
 
+
 ## Docker image
 
 There is an image automatically deployed on [Docker Hub](https://hub.docker.com/r/bosagora/stoa).
 It can be pulled with `docker pull bosagora/stoa`.
 
+  
 ## Manual
 
 One can use `npm start` to run Stoa, and access it on its default port (4242).
 Tests can be run via `npm test`, which executes the `*.test.ts` files in the `tests` folder.
+

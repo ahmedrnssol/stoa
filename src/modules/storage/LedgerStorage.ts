@@ -412,7 +412,7 @@ export class LedgerStorage extends Storages {
             url             TEXT      NOT NULL,
             mime            TEXT      NOT NULL,
             doc_hash        TEXT      NOT NULL,
-            
+
             PRIMARY KEY(proposal_id(64), attachment_id(64))
         );
 
@@ -2078,6 +2078,46 @@ export class LedgerStorage extends Storages {
         return this.query(sql, []);
     }
 
+    /**
+     * Get proposal attachment
+     * @param proposalID Send proposal Attachments for a given proposal ID
+     * @returns Returns the Promise. If it is finished successfully the `.then`
+     * of the returned Promise is called with the records
+     * and if an error occurs the `.catch` is called with an error.
+     */
+    public getPropsalAttachments(proposalID:string): Promise<any> {
+        const sql = `SELECT T1.pre_evaluation_start_time as startTime,
+                            T1.pre_evaluation_end_time as endTime,
+                            T1.ave_pre_evaluation_score as avgScore,
+                            T1.voting_fee_hash as votingFeeHash,
+                            T2.proposer_address as proposerWalletAddress,
+                            T2.proposal_fee_address as walletAddressToDeposit,
+                            T2.proposal_fee_tx_hash as proposalFeeHash
+
+                            FROM
+                                proposal_metadata T1
+                                INNER JOIN proposal T2 ON (T1.proposal_id = T2.proposal_id)
+
+                            WHERE T1.proposal_id= ?`;
+
+        const urls=`SELECT url
+                        FROM proposal_attachments
+                        WHERE proposal_id=?`;
+
+        const result: any = {};
+        return new Promise<any>((resolve, reject) => {
+            this.query(sql, [proposalID.toString()])
+                .then((rows: any) => {
+                    result.proposalData = rows;
+                    return this.query(urls, [proposalID.toString()]);
+                })
+                .then((rows: any[]) => {
+                    result.url = rows;
+                    resolve(result);
+                })
+                .catch(reject);
+        });
+    }
     /**
      * Get validators
      * @param height If present, the height at which the returned list of

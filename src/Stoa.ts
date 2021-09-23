@@ -54,7 +54,8 @@ import {
     ValidatorData,
     IPendingProposal,
     IProposalAPI,
-    IProposalList
+    IProposalList,
+    IProposalAttachmentAPI
 } from "./Types";
 
 import bodyParser from "body-parser";
@@ -268,6 +269,8 @@ class Stoa extends WebService {
         this.app.get("/search/hash/:hash", isBlackList, this.searchHash.bind(this));
         this.app.get("/proposals/", isBlackList, this.getProposals.bind(this));
         this.app.get("/proposalbyid/:proposal_id", isBlackList, this.getProposalById.bind(this));
+
+        this.app.get("/proposal_attachment/:proposal_id", isBlackList, this.getProposalAttachments.bind(this));
 
         // It operates on a private port
         this.private_app.post("/block_externalized", this.postBlock.bind(this));
@@ -2285,6 +2288,51 @@ class Stoa extends WebService {
             return resolve(blockTransactions);
         });
     }
+
+    /**
+     * GET /proposal Attachments
+     * Called when a request is received through the `proposal/attachment/:proposalID` handler
+     * Returns a proposal attachments based on proposal ID
+     */
+     private getProposalAttachments(req: express.Request, res: express.Response){
+        const proposalID=req.params.proposal_id.trim();
+        if(proposalID===undefined || proposalID.length===0){
+            res.status(400).send(`Invalid ID.`);
+        }
+        else{
+            this.ledger_storage.getPropsalAttachments(proposalID)
+                .then((result)=>{
+                    if(result===undefined){
+                        res.status(204).send(`The data does not exist.`);
+                        return;
+                    }
+                    else{
+                    const proposalAttachments:IProposalAttachmentAPI={
+                        starting_Time:result.proposalData[0].startTime,
+                        ending_Time:result.proposalData[0].endTime,
+                        evaluation_Score:result.proposalData[0].avgScore,
+                        attachment_URL:result.url,
+                        proposer_Wallet_Address:result.proposalData[0].proposerWalletAddress,
+                        wallet_Address_toDeposit:result.proposalData[0].walletAddressToDeposit,
+                        votingHash : new Hash(result.proposalData[0].votingFeeHash, Endian.Little).toString(),
+                        proposing_Hash: new Hash(result.proposalData[0].proposalFeeHash, Endian.Little).toString(),
+
+                    };
+                    res.status(200).send(JSON.stringify(proposalAttachments));
+                }
+                })
+                .catch((err) => {
+                    logger.error("Failed to data lookup to the DB: " + err, {
+                        operation: Operation.db,
+                        height: HeightManager.height.toString(),
+                        status: Status.Error,
+                        responseTime: Number(moment().utc().unix() * 1000),
+                    });
+                    return res.status(500).send("Failed to data lookup");
+                });
+        }
+    }
+
     /* Get BOA Holders
      * @returns Returns BOA Holders of the ledger.
      */
@@ -2686,14 +2734,14 @@ class Stoa extends WebService {
                             vote_fee: JSBI.BigInt(row.vote_fee),
                             proposal_fee_tx_hash: new Hash(row.proposal_fee_tx_hash, Endian.Little),
                             proposer_address: row.proposer_address,
-                            proposal_fee_address: row.proposal_fee_address
+                            proposal_fee_address: row.proposal_fee_address,
                         });
                     }
-                    resolve(proposals)
+                    resolve(proposals);
                 }).catch((err) => {
                     reject(err);
-                })
-        })
+                });
+        });
     }
 
     /**

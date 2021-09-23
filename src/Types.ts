@@ -1158,6 +1158,20 @@ export interface IMetaData {
 }
 
 /**
+ * The Interface for a Proposal's Attachment Data
+ */
+ export interface IProposalAttachmentAPI {
+    starting_Time:number;
+    ending_Time:number;
+    evaluation_Score:number;
+    attachment_URL:string[];
+    proposer_Wallet_Address:string;
+    wallet_Address_toDeposit:string;
+    votingHash:string;
+    proposing_Hash:string;
+}
+
+/**
  * The Interface for a Proposal's Attachments
  */
 export interface IProposalAttachment {
