@@ -1535,9 +1535,9 @@ export class LedgerStorage extends Storages {
 
                     unlock_height_query = `(
                             SELECT '${JSBI.add(
-                                height.value,
-                                JSBI.BigInt(2016)
-                            ).toString()}' AS unlock_height WHERE EXISTS
+                        height.value,
+                        JSBI.BigInt(2016)
+                    ).toString()}' AS unlock_height WHERE EXISTS
                             (
                                 SELECT
                                     *
@@ -2091,47 +2091,6 @@ export class LedgerStorage extends Storages {
             transaction_pool
         `;
         return this.query(sql, []);
-    }
-
-    /**
-     * Get proposal attachment
-     * @param proposalID Send proposal Attachments for a given proposal ID
-     * @returns Returns the Promise. If it is finished successfully the `.then`
-     * of the returned Promise is called with the records
-     * and if an error occurs the `.catch` is called with an error.
-     */
-    public getPropsalAttachments(proposalID: string): Promise<any> {
-        const sql = `SELECT T1.pre_evaluation_start_time as startTime,
-                            T1.pre_evaluation_end_time as endTime,
-                            T1.ave_pre_evaluation_score as avgScore,
-                            T1.voting_fee_hash as votingFeeHash,
-                            T2.proposer_address as proposerWalletAddress,
-                            T2.proposal_fee_address as walletAddressToDeposit,
-                            T2.proposal_fee_tx_hash as proposalFeeHash
-
-                            FROM
-                                proposal_metadata T1
-                                INNER JOIN proposal T2 ON (T1.proposal_id = T2.proposal_id)
-
-                            WHERE T1.proposal_id= ?`;
-
-        const urls = `SELECT url
-                        FROM proposal_attachments
-                        WHERE proposal_id=?`;
-
-        const result: any = {};
-        return new Promise<any>((resolve, reject) => {
-            this.query(sql, [proposalID.toString()])
-                .then((rows: any) => {
-                    result.proposalData = rows;
-                    return this.query(urls, [proposalID.toString()]);
-                })
-                .then((rows: any[]) => {
-                    result.url = rows;
-                    resolve(result);
-                })
-                .catch(reject);
-        });
     }
 
     /**
@@ -3594,7 +3553,7 @@ export class LedgerStorage extends Storages {
                     M.proposer_name,
                     count(*) OVER() AS full_count
                     FROM proposal P
-                    INNER JOIN proposal_metadata M
+                    LEFT OUTER JOIN proposal_metadata M
                     ON(P.proposal_id = M.proposal_id)
                     LIMIT ? OFFSET ?
             `;
@@ -3613,7 +3572,7 @@ export class LedgerStorage extends Storages {
                     P.proposal_id,
                     M.detail,
                     P.tx_hash,
-                    P.proposal_fee_tx_hash,
+                    M.voting_fee_hash,
                     M.proposer_name,
                     P.fund_amount,
                     P.proposal_fee,
@@ -3623,13 +3582,35 @@ export class LedgerStorage extends Storages {
                     P.vote_end_height,
                     M.voting_end_date,
                     M.submit_time,
-                    P.proposal_status
+                    P.proposal_status,
+                    M.pre_evaluation_start_time,
+                    M.pre_evaluation_end_time,
+                    M.ave_pre_evaluation_score,
+                    P.proposer_address,
+                    P.proposal_fee_address
                 FROM proposal P 
-                INNER JOIN proposal_metadata M
+                LEFT OUTER JOIN proposal_metadata M
                 ON (P.proposal_id = M.proposal_id)
                 WHERE P.proposal_id = ?
             `;
-        return this.query(sql, [proposal_id]);
+        const urls = `
+                SELECT url
+                FROM proposal_attachments
+                WHERE proposal_id=?`
+        const result: any = {};
+        // return this.query(sql, [proposal_id]);
+        return new Promise<any>((resolve, reject) => {
+            this.query(sql, [proposal_id.toString()])
+                .then((rows: any) => {
+                    result.proposalData = rows;
+                    return this.query(urls, [proposal_id.toString()]);
+                })
+                .then((rows: any[]) => {
+                    result.url = rows;
+                    resolve(result);
+                })
+                .catch(reject);
+        });
     }
 
     /**

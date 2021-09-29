@@ -1020,7 +1020,7 @@ describe("Test of Stoa API Server", () => {
             proposal_id: 'ID1234567890',
             detail: 'Description Make better world!',
             proposal_tx_hash: '0x917fba7333947d00cfbc086164e81c1ad7b98dc6a4c61822a89f6eb061b29e956c5c964a2d4b9cce9a2119244e320091b20074351ab288e07f9946b9dcc4735a',
-            proposal_fee_tx_hash: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+            fee_tx_hash: '0x8b6a2e1ecc3616ad63c73d606c4019407ebfd06a122519e7bd88d99af92d19d9621323d7c2e68593053a570522b6bc8575d1ee45a74ee38726f297a5ce08e33d',
             proposer_name: 'test',
             fund_amount: 45161676009963520,
             proposal_fee: 65432246592471040,
@@ -1030,28 +1030,18 @@ describe("Test of Stoa API Server", () => {
             vote_end_height: 53771,
             voting_end_date: moment('2021-08-02').utc().unix(),
             proposal_status: 'Ongoing',
-            proposal_date: 1627015766
+            proposal_date: 1627015766,
+            pre_evaluation_start_time: moment("2021-08-18").utc().unix(),
+            pre_evaluation_end_time: moment("2021-08-18").utc().unix(),
+            ave_pre_evaluation_score: 7,
+            proposer_address: 'boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67',
+            proposal_fee_address: 'boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67',
+            urls: [
+                {
+                    url: 'https://s3.ap-northeast-2.amazonaws.com/com.kosac.defora.beta.upload-image/BOASCAN_Requirements_Documentation_Version1_0_EN_copy_fb69a8a7d5.pdf'
+                }
+            ]
         }
-        assert.deepStrictEqual(response.data, expected);
-    });
-
-    it("Test of the path /proposal/attachment with proposal Id", async () => {
-        const uri = URI(stoa_addr)
-            .directory("/proposal_attachment/")
-            .filename("ID1234567890");
-        const response = await client.get(uri.toString());
-        const expected = {
-            starting_time: moment("2021-08-18").utc().unix(),
-            ending_time: moment("2021-08-18").utc().unix(),
-            evaluation_score: 7,
-            attachment_url: [
-                { url: "https://s3.ap-northeast-2.amazonaws.com/com.kosac.defora.beta.upload-image/BOASCAN_Requirements_Documentation_Version1_0_EN_copy_fb69a8a7d5.pdf" }
-            ],
-            proposer_wallet_address: "boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67",
-            wallet_address_deposit: "boa1xzgenes5cf8xel37fz79gzs49v56znllk7jw7qscjwl5p6a9zxk8zaygm67",
-            voting_hash: "0x8b6a2e1ecc3616ad63c73d606c4019407ebfd06a122519e7bd88d99af92d19d9621323d7c2e68593053a570522b6bc8575d1ee45a74ee38726f297a5ce08e33d",
-            proposing_hash: "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        };
         assert.deepStrictEqual(response.data, expected);
     });
 });

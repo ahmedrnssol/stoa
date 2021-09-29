@@ -1000,7 +1000,7 @@ export interface IProposalAPI {
     /**
      * Proposal Fee transaction hash
      */
-    proposal_fee_tx_hash: string;
+    fee_tx_hash: string;
 
     /**
      * Proposal fee
@@ -1016,6 +1016,37 @@ export interface IProposalAPI {
      * Proposal voting end date
      */
     voting_end_date: number;
+
+    /**
+     * Proposal pre evaluation start time
+     */
+    pre_evaluation_start_time: number;
+
+    /**
+     * Proposal pre evaluation end time
+     */
+    pre_evaluation_end_time: number;
+
+    /**
+     * Proposal pre evaluation average score
+     */
+    ave_pre_evaluation_score: number;
+
+    /**
+     * Proposer address
+     */
+    proposer_address: string;
+
+    /**
+     * Wallet address to desposit
+     */
+    proposal_fee_address: string;
+
+    /**
+     * Attachment URLs
+     */
+    urls: string[];
+
 }
 
 /**
@@ -1150,52 +1181,6 @@ export interface IMetaData {
     proposer_name: string;
     assessResult: IProposalAssessResult;
     proposal_attachments: IProposalAttachment[];
-}
-
-/**
- * The Interface for a Proposal's Attachment Data
- */
-export interface IProposalAttachmentAPI {
-
-    /**
-     * Pre-evalution start time
-     */
-    starting_time: number;
-
-    /**
-     * Pre-evalution end time
-     */
-    ending_time: number;
-
-    /**
-     * Pre-evalution average score
-     */
-    evaluation_score: number;
-
-    /**
-     * Attachments URL array
-     */
-    attachment_url: string[];
-
-    /**
-     * Proposer wallet address
-     */
-    proposer_wallet_address: string;
-
-    /**
-     * Wallet address to deposit
-     */
-    wallet_address_deposit: string;
-
-    /**
-     * Voting hash
-     */
-    voting_hash: string;
-
-    /**
-     * proposing hash
-     */
-    proposing_hash: string;
 }
 
 /**
