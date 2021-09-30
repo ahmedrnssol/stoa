@@ -796,6 +796,11 @@ export interface IAccountInformation {
     total_frozen: JSBI;
 
     /**
+     * Total reward amount of account
+     */
+    total_reward: JSBI;
+
+    /**
      * Tranaction count of account
      */
     tx_count: JSBI;
