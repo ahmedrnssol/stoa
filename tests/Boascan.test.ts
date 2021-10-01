@@ -1044,4 +1044,20 @@ describe("Test of Stoa API Server", () => {
         }
         assert.deepStrictEqual(response.data, expected);
     });
+
+    it("Test for path /validator/reward/:address", async () => {
+        const uri = URI(stoa_addr)
+            .directory("/validator/reward")
+            .filename("boa1xpvald2ydpxzl9aat978kv78y5g24jxy46mcnl7munf4jyhd0zjrc5x62kn");
+        const response = await client.get(uri.toString());
+        let expected = [{
+            block_height: 0,
+            freezing_amount: 20000000000000,
+            block_reward: 0,
+            block_fee: 0,
+            reward_amount: 0,
+            total_count: 1
+        }]
+        assert.deepStrictEqual(response.data, expected);
+    });
 });
