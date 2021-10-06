@@ -2606,10 +2606,10 @@ class Stoa extends WebService {
                     for (const row of data) {
                         rewards.push({
                             block_height: row.block_height,
-                            freezing_amount: row.type === 1 ? row.amount : 0,
+                            steaking_amount: row.amount,
                             block_reward: row.total_reward,
                             block_fee: row.total_fee,
-                            reward_amount: row.type === 2 ? row.amount : 0,
+                            validator_reward: row.validator_reward,
                             total_count: row.full_count
                         });
                     }

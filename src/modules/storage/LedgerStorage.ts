@@ -3721,18 +3721,21 @@ export class LedgerStorage extends Storages {
      */
     public getValidatorReward(address: string, limit: number, page: number): Promise<any> {
         const sql = `
-            SELECT
-                O.amount, 
-                B.total_reward, 
-                B.total_fee, 
-                B.block_height, 
-                O.type, 
+                SELECT 
+                V.amount, 
+                O.block_height,
+                O.amount as validator_reward,
+                B.total_reward,
+                B.total_fee,
                 count(*) OVER() AS full_count
-            FROM tx_outputs O
-            INNER JOIN blocks_stats B
-            ON(O.block_height = B.block_height)
-            WHERE (O.address = ?) AND (O.type = 1 OR O.type = 2)
-            LIMIT ? OFFSET ?`;
+                FROM validators V
+                INNER JOIN tx_outputs O ON(V.address = O.address)
+                INNER JOIN blocks_stats B ON (O.block_height = B.block_height)
+                WHERE 
+                (V.address = ? AND 
+                V.enrolled_at = (select max(enrolled_at) from validators) 
+                AND O.type = 2)
+                LIMIT ? OFFSET ?`;
         return this.query(sql, [address, limit, limit * (page - 1)]);
     }
 

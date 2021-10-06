@@ -816,9 +816,9 @@ export interface IValidatorReward {
     block_height: number;
 
     /**
-     * Freezing amount
+     * The amount of steaking
      */
-    freezing_amount: number;
+    steaking_amount: number;
 
     /**
      * Total block reward
@@ -831,9 +831,9 @@ export interface IValidatorReward {
     block_fee: number;
 
     /**
-     * Validator receive reward
+     * Validator reward amount
      */
-    reward_amount: number;
+    validator_reward: number;
 
     /**
      * Total record count
