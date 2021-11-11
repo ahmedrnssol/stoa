@@ -1097,6 +1097,15 @@ export interface IBlock {
 }
 
 /**
+ * Define the types of currency for the coin market
+ */
+export enum CurrencyType {
+    USD = "usd",
+    KRW = "krw",
+    CNY = "cny",
+}
+
+/**
  * The interface of transaction
  */
 
@@ -1192,6 +1201,11 @@ export interface IMarketCap {
      * Last updated time
      */
     last_updated_at: number;
+
+    /**
+     * Currency
+     */
+    currency: string;
 }
 
 /**
@@ -1376,6 +1390,11 @@ export interface IProposalList {
     proposal_type: string;
 
     /**
+     * Proposal height
+     */
+    block_height: number;
+
+    /**
      * Proposal fund amount
      */
     fund_amount: number;
@@ -1416,9 +1435,45 @@ export interface IProposalList {
     voting_end_date: number;
 
     /**
+     * Proposal result
+     */
+    proposal_result: string;
+
+    /**
      * Full count
      */
     full_count: number;
+
+    /**
+     * Total Validators Count
+     */
+    total_validators: number;
+
+    /**
+     * Voted yes Percentage
+     */
+    yes_percentage: string;
+
+    /**
+     * Voted No Percentage
+     */
+    no_percentage: string;
+
+    /**
+     * Voted Abstain Percentage
+     */
+    abstain_percentage: string;
+
+    /**
+     * Voted Percentage
+     */
+    voted_percentage: string;
+
+    /**
+     * Not Voted Percentage
+     */
+    not_voted_percentage: string;
+
 }
 
 /**
@@ -1441,6 +1496,11 @@ export interface IProposalAPI {
     proposal_type: string;
 
     /**
+     * Proposal height
+     */
+    block_height: number;
+
+    /**
      * Proposal fund amount
      */
     fund_amount: number;
@@ -1458,12 +1518,7 @@ export interface IProposalAPI {
     /**
      * Proposal status
      */
-    proposal_status: string;
-
-    /**
-     * Proposal result
-     */
-    proposal_result: string;
+    proposal_status: number;
 
     /**
      * Proposal date
@@ -1534,8 +1589,68 @@ export interface IProposalAPI {
      * Attachment URLs
      */
     urls: string[];
-}
 
+    /**
+     * Proposal result
+     */
+    proposal_result: string;
+
+    /**
+     * Total Validators Count
+     */
+    total_validators: number;
+
+    /**
+     * Voted Yes Count
+     */
+    total_yes_voted: number;
+
+    /**
+     * Voted No Count
+     */
+    total_no_voted: number;
+
+    /**
+     * Voted Abstain Count
+     */
+    total_abstain_voted: number;
+
+    /**
+     * Voted Not Voted Count
+     */
+    total_not_voted: number;
+
+    /**
+     * Voted yes Percentage
+     */
+    yes_percentage: string;
+
+    /**
+     * Voted No Percentage
+     */
+    no_percentage: string;
+
+    /**
+     * Voted Abstain Percentage
+     */
+    abstain_percentage: string;
+
+    /**
+     * Voted Not Voted Percentage
+     */
+    not_voted_percentage: string;
+
+    /**
+     * Voted Voted Percentage
+     */
+    voted_percentage: string;
+
+    /**
+     * Voted Voted numbers
+     */
+    total_voted: number;
+
+}
 /**
  * Interface for new Transaction Emit
  */
