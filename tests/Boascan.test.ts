@@ -21,7 +21,7 @@ import { IDatabaseConfig } from "../src/modules/common/Config";
 import { Exchange } from "../src/modules/common/Exchange";
 import { CoinMarketService } from "../src/modules/service/CoinMarketService";
 import { VoteraService } from "../src/modules/service/VoteraService";
-import { IMarketCap, IMetaData, IPendingProposal, IProposal, IValidatorByBlock } from "../src/Types";
+import { CurrencyType, IMarketCap, IMetaData, IPendingProposal, IProposal, IValidatorByBlock } from "../src/Types";
 import { MockDBConfig } from "./TestConfig";
 import {
     FakeBlacklistMiddleware,
@@ -126,7 +126,7 @@ describe("Test of Stoa API Server", function () {
                     "0x515a30d31fbd031d63f041b92184f32baf00d08e4120da9299bc336c6f980f2245b11e70bb1dcb7c2279ead9dab1c37b62dee8414083ae8346d166cf033cddfb",
                 signature:
                     "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                validators: "110111",
+                validators: 5,
                 tx_count: "8",
                 enrollment_count: "0",
                 time_stamp: 1609459800,
@@ -139,7 +139,7 @@ describe("Test of Stoa API Server", function () {
                     "0x67218493be437c25dc5884abdc8ee40e61f0af79aa9af8ab9bd8b0632eaaca238b4c054f114b046da0d5911b1b205ba540d07c5dc01560beafe564e5f3d101c9",
                 signature:
                     "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                validators: "",
+                validators: 0,
                 tx_count: "2",
                 enrollment_count: "6",
                 time_stamp: 1609459200,
@@ -312,6 +312,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0x0a8201f9f5096e1ce8e8de4147694940a57a188b78293a55144fc8777a774f2349b3a910fb1fb208514fb16deaf49eb05882cdb6796a81f913c6daac3eb74328",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -321,6 +322,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xd0348a88f9b7456228e4df5689a57438766f4774d760776ec450605c82348c461db84587c2c9b01c67c8ed17f297ee4008424ad3e0e5039179719d7e9df297c1",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -330,6 +332,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xaf43c67d9dd0f53de3eaede63cdcda8643422d62205df0b5af65706ec28b372adb785ce681d559d7a7137a4494ccbab4658ce11ec75a8ec84be5b73590bffceb",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -339,6 +342,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xa24b7e6843220d3454523ceb7f9b43f037e56a01d2bee82958b080dc6350ebac2da12b561cbd96c6fb3f5ae5a3c8df0ac2c559ae1c45b11d42fdf866558112bc",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -348,6 +352,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xa0502960ddbe816729f60aeaa480c7924fb020d864deec6a9db778b8e56dd2ff8e987be748ff6ca0a43597ecb575da5d532696e376dc70bb4567b5b1fa512cb4",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -357,6 +362,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xdd1b9c62d4c62246ea124e5422d5a2e23d3ca9accb0eba0e46cd46708a4e7b417f46df34dc2e3cba9a57b1dc35a66dfc2d5ef239ebeaaa00299232bc7e3b7bfa",
                 full_count: 6,
+                cycle_length: 20
             },
         ];
         assert.deepStrictEqual(response.data, expected);
@@ -380,6 +386,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0x0a8201f9f5096e1ce8e8de4147694940a57a188b78293a55144fc8777a774f2349b3a910fb1fb208514fb16deaf49eb05882cdb6796a81f913c6daac3eb74328",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -389,6 +396,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xd0348a88f9b7456228e4df5689a57438766f4774d760776ec450605c82348c461db84587c2c9b01c67c8ed17f297ee4008424ad3e0e5039179719d7e9df297c1",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -398,6 +406,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xaf43c67d9dd0f53de3eaede63cdcda8643422d62205df0b5af65706ec28b372adb785ce681d559d7a7137a4494ccbab4658ce11ec75a8ec84be5b73590bffceb",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -407,6 +416,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xa24b7e6843220d3454523ceb7f9b43f037e56a01d2bee82958b080dc6350ebac2da12b561cbd96c6fb3f5ae5a3c8df0ac2c559ae1c45b11d42fdf866558112bc",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -416,6 +426,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xa0502960ddbe816729f60aeaa480c7924fb020d864deec6a9db778b8e56dd2ff8e987be748ff6ca0a43597ecb575da5d532696e376dc70bb4567b5b1fa512cb4",
                 full_count: 6,
+                cycle_length: 20
             },
             {
                 height: "0",
@@ -425,6 +436,7 @@ describe("Test of Stoa API Server", function () {
                 commitment:
                     "0xdd1b9c62d4c62246ea124e5422d5a2e23d3ca9accb0eba0e46cd46708a4e7b417f46df34dc2e3cba9a57b1dc35a66dfc2d5ef239ebeaaa00299232bc7e3b7bfa",
                 full_count: 6,
+                cycle_length: 20
             },
         ];
         assert.deepStrictEqual(response.data, expected);
@@ -445,6 +457,7 @@ describe("Test of Stoa API Server", function () {
                 fee: 0,
                 size: 278,
                 time: 1609459200,
+                type: 'Freeze',
                 sender_address: null,
                 receiver: [
                     {
@@ -489,6 +502,7 @@ describe("Test of Stoa API Server", function () {
                 size: 368,
                 time: 1609459200,
                 sender_address: null,
+                type: "Payment",
                 receiver: [
                     {
                         type: 0,
@@ -557,6 +571,7 @@ describe("Test of Stoa API Server", function () {
                 size: 278,
                 time: 1609459200,
                 sender_address: null,
+                type: "Freeze",
                 receiver: [
                     {
                         type: 1,
@@ -599,6 +614,7 @@ describe("Test of Stoa API Server", function () {
                 fee: 0,
                 size: 368,
                 time: 1609459200,
+                type: "Payment",
                 sender_address: null,
                 receiver: [
                     {
@@ -648,6 +664,27 @@ describe("Test of Stoa API Server", function () {
         assert.deepStrictEqual(response.data, expected);
     });
 
+    it("Test for putCoinMarketStats method", async () => {
+        const data: IMarketCap = await gecko_market.fetch(CurrencyType.USD);
+        const response = await stoa_server.putCoinMarketStats(data);
+        assert.deepStrictEqual(response.affectedRows, 1);
+    });
+
+    it("Test for /coinmarketcap", async () => {
+        const uri = URI(stoa_addr).directory("/coinmarketcap")
+            .addSearch('currency', 'usd');
+        const response = await client.get(uri.toString());
+        const expected = {
+            last_updated_at: 1622599176,
+            price: "0.239252",
+            market_cap: 72635724,
+            vol_24h: 1835353,
+            change_24h: -7,
+            currency: 'usd'
+        };
+        assert.deepStrictEqual(response.data, expected);
+    });
+
     it("Test of the path /boa-stats", async () => {
         const uri = URI(stoa_addr).directory("boa-stats");
         const response = await client.get(uri.toString());
@@ -659,31 +696,17 @@ describe("Test of Stoa API Server", function () {
             total_reward: '0',
             circulating_supply: 5000000000000000,
             active_validators: 5,
+            price: 119626000,
             time_stamp: 1609459800
         };
         assert.deepStrictEqual(response.data, expected);
     });
 
-    it("Test for putCoinMarketStats method", async () => {
-        const data: IMarketCap = await gecko_market.fetch();
-        const response = await stoa_server.putCoinMarketStats(data);
-        assert.deepStrictEqual(response.affectedRows, 1);
-    });
-
-    it("Test for /coinmarketcap", async () => {
-        const uri = URI(stoa_addr).directory("/coinmarketcap");
-        const response = await client.get(uri.toString());
-        const expected = {
-            last_updated_at: 1622599176,
-            price: "0.239252",
-            market_cap: 72635724,
-            vol_24h: 1835353,
-            change_24h: -7,
-        };
-        assert.deepStrictEqual(response.data, expected);
-    });
     it("Test for /holders", async () => {
-        const uri = URI(stoa_addr).directory("/holders");
+        const uri = URI(stoa_addr).directory("/holders")
+            .addSearch('currency', 'usd')
+            .addSearch('page', '1')
+            .addSearch('pageSize', '10');
         const response = await client.get(uri.toString());
         const expected = [
             {
@@ -696,7 +719,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -709,7 +732,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -722,7 +745,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -735,7 +758,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -748,7 +771,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -761,7 +784,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -774,7 +797,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -787,7 +810,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 48799999980960,
                 total_balance: 48799999980960,
                 percentage: "0.9760",
-                value: 1167549.760,
+                value: 1167549.759544,
                 full_count: 199
             },
             {
@@ -800,7 +823,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 24399999990480,
                 total_balance: 24399999990480,
                 percentage: "0.4880",
-                value: 583774.880,
+                value: 583774.879772,
                 full_count: 199
             },
             {
@@ -813,7 +836,7 @@ describe("Test of Stoa API Server", function () {
                 total_spendable: 24399999990480,
                 total_balance: 24399999990480,
                 percentage: "0.4880",
-                value: 583774.880,
+                value: 583774.879772,
                 full_count: 199
             }
         ]
@@ -842,7 +865,8 @@ describe("Test of Stoa API Server", function () {
     it("Test for /holder/:address", async () => {
         const uri = URI(stoa_addr)
             .directory("/holder")
-            .filename("boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq");
+            .filename("boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq")
+            .addSearch('currency', 'usd');
         const response = await client.get(uri.toString());
         const expected = {
             address: "boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq",
@@ -854,7 +878,7 @@ describe("Test of Stoa API Server", function () {
             total_frozen: 0,
             total_balance: 48799999980960,
             percentage: "0.9760",
-            value: 1167549.760,
+            value: 1167549.759544,
         };
         assert.deepStrictEqual(response.data, expected);
     });
@@ -937,13 +961,14 @@ describe("Test of Stoa API Server", function () {
         assert.deepStrictEqual(response.data, expected);
     });
 
-    it("Test for /convert-to-usd", async () => {
+    it("Test for /convert-to-currency", async () => {
         const uri = URI(stoa_addr)
-            .directory("/convert-to-usd")
-            .addSearch('amount', '1.23');
+            .directory("/convert-to-currency")
+            .addSearch('amount', '1.23')
+            .addSearch('currency', 'usd');
 
         const response = await client.get(uri.toString());
-        let expected = { amount: 1.23, USD: 0.294 }
+        let expected = { amount: 1.23, currency: 0.29428 }
         assert.deepStrictEqual(response.data, expected);
     });
 
@@ -951,7 +976,7 @@ describe("Test of Stoa API Server", function () {
         let rate = 3450246;
         let Boa = 0.5;
         let exchange = new Exchange(rate);
-        let value = exchange.convertBoaToUsd(Boa);
+        let value = exchange.convertBoaToCurrency(Boa);
         assert.deepStrictEqual(value, rate * Boa);
     });
 
@@ -960,7 +985,7 @@ describe("Test of Stoa API Server", function () {
         let amount = new Amount(4880000000000000);
         let exchange = new Exchange(rate);
 
-        let value = exchange.convertAmountToUsd(amount);
+        let value = exchange.convertAmountToCurrency(amount);
         assert.deepStrictEqual(value, rate * 488000000);
     });
     it("Test of the path /boa-stats with circulating and reward", async () => {
@@ -974,6 +999,7 @@ describe("Test of Stoa API Server", function () {
             total_reward: '8717784200000',
             time_stamp: 1609460400,
             circulating_supply: 5008717784200000,
+            price: 119834574.730542,
             active_validators: 5
         };
         assert.deepStrictEqual(response.data, expected);
@@ -989,19 +1015,13 @@ describe("Test of Stoa API Server", function () {
         assert.strictEqual(response.data, expected);
     });
 
-    it("Test of the path /validator/missed_blocks/:address", async () => {
+    it("Test of the path /validator/missed-blocks/:address", async () => {
         const uri = URI(stoa_addr)
-            .directory("/validator/missed_blocks")
+            .directory("/validator/missed-blocks")
             .filename("boa1xrvald4v2gy790stemq4gg37v4us7ztsxq032z9jmlxfh6xh9xfak4qglku");
 
         const response = await client.get(uri.toString());
-        const expected = [
-            { block_height: 5, signed: 1 },
-            { block_height: 4, signed: 1 },
-            { block_height: 3, signed: 1 },
-            { block_height: 2, signed: 1 },
-            { block_height: 1, signed: 0 }
-        ]
+        const expected = [{ block_height: 1, signed: 0 }]
         assert.deepStrictEqual(response.data, expected);
     });
 
@@ -1036,8 +1056,8 @@ describe("Test of Stoa API Server", function () {
                     full_count: 5
                 },
                 {
-                    address: 'boa1xrvald4v2gy790stemq4gg37v4us7ztsxq032z9jmlxfh6xh9xfak4qglku',
-                    utxo_key: '0x70455f0b03f4b8d54b164b251e813b3fecd447d4bfe7b173ef86654429d2f5c3866d3ea406bf02163221a2d4029f0e0930a48304b2ea0f9277c2b32795c4005f',
+                    address: 'boa1xpvald2ydpxzl9aat978kv78y5g24jxy46mcnl7munf4jyhd0zjrc5x62kn',
+                    utxo_key: '0x7fa36630b0d4a6be729fcab6db70c9b603f2da4c28feaa754f178b5cedb0174a9647fe8c08cdbfd244c6a5d23a7fdf89f1990e002c5565e1babbdb53193e95bc',
                     pre_image: {
                         height: '2',
                         hash: '0x30481a165e55c635d010d72df6b750f17e38b9b394f2b11de05bb0f85fffeb2880b4a41cec7a556812780cf794b76e815846fdb28e495f0ba288db6373867acf'
@@ -1047,8 +1067,8 @@ describe("Test of Stoa API Server", function () {
                     full_count: 5
                 },
                 {
-                    address: 'boa1xpvald2ydpxzl9aat978kv78y5g24jxy46mcnl7munf4jyhd0zjrc5x62kn',
-                    utxo_key: '0x7fa36630b0d4a6be729fcab6db70c9b603f2da4c28feaa754f178b5cedb0174a9647fe8c08cdbfd244c6a5d23a7fdf89f1990e002c5565e1babbdb53193e95bc',
+                    address: 'boa1xzvald5dvy54j7yt2h5yzs2432h07rcn66j84t3lfdrlrwydwq78cz0nckq',
+                    utxo_key: '0xd935b5f1b616e6ec5c96502395e4b89683f526bdb8845f93a67bd329d44b1c2e5c185492e9610c0e3648609b3a9a5b21a35ee1a16f234c6415099803a97306ca',
                     pre_image: {
                         height: '2',
                         hash: '0xc747fd812a774196c6e2c888abc2b6aa143099ad1f6e792eab40f3fab3db5e591ff9240a4e9484282ee0097bd7a48a661a41c653f34fb2ec5be9088752a44cc0'
@@ -1058,8 +1078,8 @@ describe("Test of Stoa API Server", function () {
                     full_count: 5
                 },
                 {
-                    address: 'boa1xzvald5dvy54j7yt2h5yzs2432h07rcn66j84t3lfdrlrwydwq78cz0nckq',
-                    utxo_key: '0xd935b5f1b616e6ec5c96502395e4b89683f526bdb8845f93a67bd329d44b1c2e5c185492e9610c0e3648609b3a9a5b21a35ee1a16f234c6415099803a97306ca',
+                    address: 'boa1xrvald3zmehvpcmxqm0kn6wkaqyry7yj3cd8h975ypzlyz00sczpzhsk308',
+                    utxo_key: '0xe0ea82fd0ab9c57b068123927c002750181366f417c30a6ded05a23aca99c2c98b508bba9ba7c496eee36d78eeb7b71f330f81633372a712010036c4dc506b07',
                     pre_image: {
                         height: '2',
                         hash: '0x9debdcfa75b6f3df5aeef082e4fc17243bb75bc1724de61e39fd023960ddcce4361027dc4c040703a013678b39045954ea7cb9fe0b9cb909c30b74fcd4c34a26'
