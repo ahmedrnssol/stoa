@@ -297,12 +297,12 @@ class Stoa extends WebService {
         this.app.get("/search/hash/:hash", isBlackList, this.searchHash.bind(this));
         this.app.get("/proposals/", isBlackList, this.getProposals.bind(this));
         this.app.get("/proposal/:proposal_id", isBlackList, this.getProposalById.bind(this));
-        this.app.get("/proposal/voting_details/:proposal_id", isBlackList, this.getVotingDetails.bind(this));
+        this.app.get("/proposal/voting-details/:proposal_id", isBlackList, this.getVotingDetails.bind(this));
         this.app.get("/validator/reward/:address", isBlackList, this.getValidatorReward.bind(this));
         this.app.get("/validator/ballot/:address", isBlackList, this.getValidatorBallots.bind(this));
         this.app.get("/convert-to-currency", isBlackList, this.convertToCurrency.bind(this));
         this.app.get("/txhash/:utxo", isBlackList, this.getTransactionHash.bind(this));
-        this.app.get("/validator/missed_blocks/:address", isBlackList, this.getValidatorMissedBlocks.bind(this));
+        this.app.get("/validator/missed-blocks/:address", isBlackList, this.getValidatorMissedBlocks.bind(this));
         this.app.get("/block/validators", isBlackList, this.getBlockValidators.bind(this));
 
 
@@ -563,22 +563,29 @@ class Stoa extends WebService {
      */
     private getTransactionFees(req: express.Request, res: express.Response) {
         const size: string = req.params.tx_size.toString();
-
+        let currency: any = String(req.query.currency);
+        if (req.query.currency === undefined) {
+            currency = CurrencyType.USD;
+        }
         if (!Utils.isPositiveInteger(size)) {
             res.status(400).send(`Invalid value for parameter 'tx_size': ${size}`);
             return;
         }
-
         const tx_size = Number(size);
         this.ledger_storage
             .getFeeMeanDisparity()
-            .then((value: number) => {
+            .then(async (value: number) => {
                 const fees = FeeManager.getTxFee(tx_size, value);
+                let exchangeRate = await this.ledger_storage.getExchangeRate(currency);
+                let exchange = new Exchange(exchangeRate);
                 const data: ITransactionFee = {
                     tx_size,
                     high: fees[0].toString(),
+                    high_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[0].toString()))),
                     medium: fees[1].toString(),
+                    medium_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[1].toString()))),
                     low: fees[2].toString(),
+                    low_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[2].toString())))
                 };
                 res.status(200).send(JSON.stringify(data));
             })
@@ -1093,10 +1100,11 @@ class Stoa extends WebService {
                     unlock_height: JSBI.BigInt(data.tx[0].unlock_height).toString(),
                     lock_height: JSBI.BigInt(data.tx[0].lock_height).toString(),
                     unlock_time: data.tx[0].unlock_time,
-                    payload: data.tx[0].payload !== null ? data.tx[0].payload.toString("base64") : "",
+                    payload: data.tx[0].payload !== null ? Buffer.byteLength(data.tx[0].payload).toString() : "",
                     senders: [],
                     receivers: [],
                     fee: JSBI.add(JSBI.BigInt(data.tx[0].tx_fee), JSBI.BigInt(data.tx[0].payload_fee)).toString(),
+                    dataFee: JSBI.BigInt(data.tx[0].tx_fee).toString()
                 };
 
                 for (const elem of data.senders)
@@ -1448,12 +1456,18 @@ class Stoa extends WebService {
      * @returns Returns statistics of BOA coin.
      */
     private getBOAStats(req: express.Request, res: express.Response) {
+        let currency: any = String(req.query.currency);
+        if (req.query.currency === undefined) {
+            currency = CurrencyType.USD;
+        }
         this.ledger_storage
             .getBOAStats()
-            .then((data: any[]) => {
+            .then(async (data: any[]) => {
                 if (!data[0]) {
                     return res.status(500).send("Failed to data lookup");
                 } else {
+                    let exchangeRate = await this.ledger_storage.getExchangeRate(currency);
+                    let exchange = new Exchange(exchangeRate);
                     const boaStats: IBOAStats = {
                         height: data[0].height,
                         transactions: data[0].transactions,
@@ -1463,6 +1477,7 @@ class Stoa extends WebService {
                         time_stamp: data[0].time_stamp,
                         circulating_supply: data[0].circulating_supply,
                         active_validators: data[0].active_validator,
+                        price: exchange.convertAmountToCurrency(new Amount(Number(data[0].circulating_supply)))
                     };
                     return res.status(200).send(JSON.stringify(boaStats));
                 }
@@ -1970,12 +1985,19 @@ class Stoa extends WebService {
             } else {
                 const blocklist: IBlock[] = [];
                 for (const row of data) {
+                    let validator_array = Array.from(row.validators);
+                    let validator_count = 0;
+                    validator_array.map(elem => {
+                        if (elem == 1) {
+                            ++validator_count;
+                        }
+                    });
                     blocklist.push({
                         height: JSBI.BigInt(row.height).toString(),
                         hash: new Hash(row.hash, Endian.Little).toString(),
                         merkle_root: new Hash(row.merkle_root, Endian.Little).toString(),
                         signature: new Hash(row.signature, Endian.Little).toString(),
-                        validators: row.validators.toString(),
+                        validators: validator_count,
                         tx_count: row.tx_count.toString(),
                         enrollment_count: row.enrollment_count.toString(),
                         time_stamp: row.time_stamp,
@@ -2765,7 +2787,7 @@ class Stoa extends WebService {
     }
 
     /**
-     * GET /voting_details/
+     * GET /voting-details/
      * Called when a request is received through the `/voting_details/` handler
      * The parameter `hash` is the hash of  transaction
      * Returns list of proposal voting details
@@ -2802,13 +2824,20 @@ class Stoa extends WebService {
     }
 
     /**
-     * GET /validator missed blocks/
+     * GET /validator/missed-blocks/
      * Called when a request is received through the `validator/missed_blocks/` handler
      * The parameter `address` is the address of  validator
      * Returns list of validator missed blocks
      */
     public async getValidatorMissedBlocks(req: express.Request, res: express.Response) {
         const address = req.params.address.toString();
+        let holderAddress: PublicKey;
+        try {
+            holderAddress = new PublicKey(address);
+        } catch (error) {
+            res.status(400).send(`Invalid value for parameter 'address': ${address}`);
+            return;
+        }
         this.ledger_storage
             .getValidatorMissedBlocks(address)
             .then((data: any[]) => {
@@ -2826,7 +2855,8 @@ class Stoa extends WebService {
     }
 
     /**
-     * GET block validators
+     * GET /block/validators
+     * The parameter `height` is the height and `hash` is the hash of block
      * Returns a set of Validators based on the block height.
      */
     public async getBlockValidators(req: express.Request, res: express.Response) {
@@ -3087,8 +3117,9 @@ class Stoa extends WebService {
             });
     }
 
-    /* Get validator ballots
-     * @returns Returns BOA Holder of the ledger.
+    /* Get /validator/ballots
+     * The parameter `address` of the validator
+     * @returns Returns validator ballots of the ledger.
      */
     public async getValidatorBallots(req: express.Request, res: express.Response) {
         const address = String(req.params.address);
@@ -3322,9 +3353,10 @@ class Stoa extends WebService {
     }
 
     /**
-     * GET /convert-to-usd
+     * GET /convert-to-currency
      * Called when a request is received through the `/convert-to-usd` handler
      * The parameter `amount` is the Boa amount.
+     * The parameter `currency` is the currency.
      * @returns Returns the USD amount against input BOA amount.
      */
     public async convertToCurrency(req: express.Request, res: express.Response) {

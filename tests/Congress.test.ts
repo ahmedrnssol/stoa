@@ -1560,9 +1560,9 @@ describe("Test of Proposal API", () => {
         assert.strictEqual(response.data, "5");
     });
 
-    it("Test for path /proposal/voting_details/:proposal_id", async () => {
+    it("Test for path /proposal/voting-details/:proposal_id", async () => {
         const uri = URI(stoa_addr)
-            .directory("/proposal/voting_details")
+            .directory("/proposal/voting-details")
             .filename("469008972006");
         const response = await client.get(uri.toString());
         const expected = [

@@ -125,7 +125,7 @@ describe("Test of Stoa API Server", () => {
                     "0x515a30d31fbd031d63f041b92184f32baf00d08e4120da9299bc336c6f980f2245b11e70bb1dcb7c2279ead9dab1c37b62dee8414083ae8346d166cf033cddfb",
                 signature:
                     "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                validators: "110111",
+                validators: 5,
                 tx_count: "8",
                 enrollment_count: "0",
                 time_stamp: 1609459800,
@@ -138,7 +138,7 @@ describe("Test of Stoa API Server", () => {
                     "0x67218493be437c25dc5884abdc8ee40e61f0af79aa9af8ab9bd8b0632eaaca238b4c054f114b046da0d5911b1b205ba540d07c5dc01560beafe564e5f3d101c9",
                 signature:
                     "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                validators: "",
+                validators: 0,
                 tx_count: "2",
                 enrollment_count: "6",
                 time_stamp: 1609459200,
@@ -647,22 +647,6 @@ describe("Test of Stoa API Server", () => {
         assert.deepStrictEqual(response.data, expected);
     });
 
-    it("Test of the path /boa-stats", async () => {
-        const uri = URI(stoa_addr).directory("boa-stats");
-        const response = await client.get(uri.toString());
-        const expected = {
-            height: 1,
-            transactions: "10",
-            validators: 6,
-            frozen_coin: '120000000000000',
-            total_reward: '0',
-            circulating_supply: 5000000000000000,
-            active_validators: 5,
-            time_stamp: 1609459800
-        };
-        assert.deepStrictEqual(response.data, expected);
-    });
-
     it("Test for putCoinMarketStats method", async () => {
         const data: IMarketCap = await gecko_market.fetch(CurrencyType.USD);
         const response = await stoa_server.putCoinMarketStats(data);
@@ -683,6 +667,24 @@ describe("Test of Stoa API Server", () => {
         };
         assert.deepStrictEqual(response.data, expected);
     });
+
+    it("Test of the path /boa-stats", async () => {
+        const uri = URI(stoa_addr).directory("boa-stats");
+        const response = await client.get(uri.toString());
+        const expected = {
+            height: 1,
+            transactions: "10",
+            validators: 6,
+            frozen_coin: '120000000000000',
+            total_reward: '0',
+            circulating_supply: 5000000000000000,
+            active_validators: 5,
+            price: 119626000,
+            time_stamp: 1609459800
+        };
+        assert.deepStrictEqual(response.data, expected);
+    });
+
     it("Test for /holders", async () => {
         const uri = URI(stoa_addr).directory("/holders")
             .addSearch('currency', 'usd')
@@ -980,6 +982,7 @@ describe("Test of Stoa API Server", () => {
             total_reward: '8717784200000',
             time_stamp: 1609460400,
             circulating_supply: 5008717784200000,
+            price: 119834574.731,
             active_validators: 5
         };
         assert.deepStrictEqual(response.data, expected);
@@ -995,9 +998,9 @@ describe("Test of Stoa API Server", () => {
         assert.strictEqual(response.data, expected);
     });
 
-    it("Test of the path /validator/missed_blocks/:address", async () => {
+    it("Test of the path /validator/missed-blocks/:address", async () => {
         const uri = URI(stoa_addr)
-            .directory("/validator/missed_blocks")
+            .directory("/validator/missed-blocks")
             .filename("boa1xrvald4v2gy790stemq4gg37v4us7ztsxq032z9jmlxfh6xh9xfak4qglku");
 
         const response = await client.get(uri.toString());

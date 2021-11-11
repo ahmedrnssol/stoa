@@ -346,6 +346,11 @@ export interface IBOAStats {
      * block timestamp
      */
     time_stamp: number;
+
+    /**
+     * Price
+     */
+    price?: number;
 }
 
 /**
@@ -581,6 +586,11 @@ export interface ITxOverview {
      * Transaction fee
      */
     fee: string;
+
+    /**
+     * Data fee
+     */
+    dataFee: string;
 }
 
 /**
@@ -1021,14 +1031,30 @@ export interface ITransactionFee {
     medium: string;
 
     /**
+     * The transaction fee for a medium speed in currency
+     */
+    medium_currency: number;
+
+    /**
      * The transaction fee for a high speed
      */
     high: string;
 
     /**
+     * The transaction fee for a high speed in currency
+     */
+    high_currency: number;
+
+    /**
      * The transaction fee for a low speed
      */
     low: string;
+
+    /**
+     * The transaction fee for a low speed in currency
+     */
+    low_currency: number;
+
 }
 
 /**
@@ -1068,7 +1094,7 @@ export interface IBlock {
     /**
      * validators of block
      */
-    validators: string;
+    validators: number;
 
     /**
      * signature of block
