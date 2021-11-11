@@ -340,11 +340,12 @@ export class LedgerStorage extends Storages {
 
         CREATE TABLE IF NOT EXISTS marketcap (
             last_updated_at INTEGER NOT NULL,
+            currency        TEXT NOT NULL,
             price           DECIMAL(14,6)  NOT NULL,
             market_cap      BIGINT(20) UNSIGNED NOT NULL,
             vol_24h         BIGINT(20) UNSIGNED NOT NULL,
             change_24h      BIGINT(20),
-            PRIMARY KEY (last_updated_at)
+            PRIMARY KEY (last_updated_at, currency(64))
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
         CREATE TABLE IF NOT EXISTS fee_mean_disparity (
@@ -1605,12 +1606,12 @@ export class LedgerStorage extends Storages {
      *
      */
     public storeCoinMarket(data: IMarketCap): Promise<any> {
-        return new Promise<void>((resolve, reject) => {
-            const sql = `INSERT IGNORE INTO marketcap (last_updated_at, price, market_cap, change_24h, vol_24h)
-            VALUES (?, ?, ?, ?, ?)
+        return new Promise<void>(async (resolve, reject) => {
+            const sql = `INSERT IGNORE INTO marketcap (last_updated_at, currency, price, market_cap, change_24h, vol_24h)
+            VALUES (?, ?, ?, ?, ?, ?)
             `;
 
-            this.query(sql, [data.last_updated_at, data.price, data.market_cap, data.change_24h, data.vol_24h])
+            this.query(sql, [data.last_updated_at, data.currency, data.price, data.market_cap, data.change_24h, data.vol_24h])
                 .then((result: any) => {
                     resolve(result);
                 })
@@ -2322,9 +2323,10 @@ export class LedgerStorage extends Storages {
      * of the returned Promise is called with the records
      * and if an error occurs the `.catch` is called with an error.
      */
-    public getValidatorsAPI(height: Height | null, address: string | null, conn: mysql.PoolConnection | undefined = undefined): Promise<any[]> {
+    public getValidatorsAPI(height: Height | null, address: string | null, conn: mysql.PoolConnection | undefined = undefined, limit?: number, page?: number): Promise<any[]> {
         let cur_height: string;
 
+        const LIMIT_QUERY = limit ? page ? `LIMIT ${limit} OFFSET ${limit * (page - 1)}` : '' : '';
         if (height !== null) cur_height = height.toString();
         else cur_height = `(SELECT MAX(height) as height FROM blocks)`;
 
@@ -2357,7 +2359,8 @@ export class LedgerStorage extends Storages {
 
         if (address != null) sql += ` AND V.address = '` + address + `'`;
 
-        sql += ` ORDER BY V.utxo_key ASC;`;
+        sql += ` ORDER BY V.utxo_key ASC `;
+        sql += LIMIT_QUERY;
 
         return this.query(sql, [this.validator_cycle], conn);
     }
@@ -4317,9 +4320,13 @@ export class LedgerStorage extends Storages {
      * of the returned Promise is called with the records
      * and if an error occurs the `.catch` is called with an error.
      */
-    public getCoinMarketcap(): Promise<any[]> {
-        const sql = `SELECT * FROM marketcap WHERE last_updated_at = (SELECT MAX(last_updated_at) as time FROM marketcap)`;
-        return this.query(sql, []);
+    public getCoinMarketcap(currency: string): Promise<any[]> {
+        const sql = `SELECT * FROM marketcap 
+        WHERE last_updated_at = (SELECT MAX(last_updated_at) as time FROM marketcap WHERE currency = ?)
+        AND currency = ?
+        `;
+
+        return this.query(sql, [currency, currency]);
     }
 
     /**
@@ -4328,10 +4335,10 @@ export class LedgerStorage extends Storages {
      * of the returned Promise is called with the records
      * and if an error occurs the `.catch` is called with an error.
      */
-    public getCoinMarketChart(from: number, to: number): Promise<any[]> {
-        const sql = `SELECT * FROM marketcap WHERE last_updated_at BETWEEN ? AND ?`;
+    public getCoinMarketChart(from: number, to: number, currency: string): Promise<any[]> {
+        const sql = `SELECT * FROM marketcap WHERE last_updated_at BETWEEN ? AND ? AND currency = ?`;
 
-        return this.query(sql, [from, to]);
+        return this.query(sql, [from, to, currency]);
     }
 
     /**
@@ -4542,9 +4549,11 @@ export class LedgerStorage extends Storages {
      */
     public getProposals(limit: number, page: number): Promise<any[]> {
         const sql = `
-                SELECT
+                SELECT 
                     P.proposal_id,
                     P.proposal_title,
+                    P.block_height,
+                    P.proposal_result,
                     P.proposal_type,
                     P.fund_amount,
                     P.vote_start_height,
@@ -4560,7 +4569,74 @@ export class LedgerStorage extends Storages {
                     ON(P.proposal_id = M.proposal_id)
                     LIMIT ? OFFSET ?
             `;
-        return this.query(sql, [limit, limit * (page - 1)]);
+        const validators = `
+                    SELECT count(DISTINCT(address)) as total_validators
+                    FROM   validators
+        `;
+
+        const total_votes = `
+                    SELECT 
+                        DISTINCT voter_address
+                    FROM ballots
+                    WHERE  proposal_id = ?
+                    `;
+        const vote_answer = `
+                    SELECT ballot_answer
+                    FROM ballots 
+                    WHERE proposal_id = ?
+                    AND voter_address = ?
+                    ORDER BY sequence DESC limit 1`;
+        const result: any = {};
+        let totalValidators: any;
+        let totalVotes: any;
+        return new Promise<any>(async (resolve, reject) => {
+            this.query(sql, [limit, limit * (page - 1)])
+                .then((rows: any) => {
+                    result.proposalData = rows;
+                    return this.query(validators, []);
+                })
+                .then(async (rows: any[]) => {
+                    totalValidators = rows[0].total_validators;
+                    const maxLength = result.proposalData.length <= 10 ? result.proposalData.length : 10;
+                    for (let i = 0; i < maxLength; i++) {
+                        const votes = await this.query(total_votes, [result.proposalData[i].proposal_id]);
+                        let yesCount = 0;
+                        let noCount = 0;
+                        let abstainCount = 0;
+                        for (let k = 0; k < votes.length; k++) {
+                            const ballot_answer = await this.query(vote_answer, [result.proposalData[i].proposal_id, votes[k].voter_address]);
+                            switch (ballot_answer[0].ballot_answer) {
+                                case 0: {
+                                    ++yesCount;
+                                    break
+                                }
+                                case 1: {
+                                    ++noCount;
+                                    break
+                                }
+                                case 2: {
+                                    ++abstainCount
+                                    break
+                                }
+                                default:
+                                    break;
+                            }
+
+                        }
+                        const votedCount = votes.length;
+                        const notVotedCount = totalValidators - votedCount;
+                        result.proposalData[i].total_validators = totalValidators;
+                        result.proposalData[i].yes_percent = (yesCount / totalValidators) * 100;
+                        result.proposalData[i].no_percent = (noCount / totalValidators) * 100;
+                        result.proposalData[i].abstain_percent = abstainCount / totalValidators * 100;
+                        result.proposalData[i].voted_percent = votedCount / totalValidators * 100;
+                        result.proposalData[i].not_voted_percent = notVotedCount / totalValidators * 100;
+
+                    }
+                    resolve(result);
+                })
+                .catch(reject);
+        });
     }
 
     /**
@@ -4571,8 +4647,9 @@ export class LedgerStorage extends Storages {
      */
     public getProposalById(proposal_id: string): Promise<any> {
         const sql = `
-                SELECT P.proposal_title,
+                SELECT P.proposal_title, 
                     P.proposal_id,
+                    P.block_height,
                     M.detail,
                     P.tx_hash,
                     M.voting_fee_hash,
@@ -4592,7 +4669,7 @@ export class LedgerStorage extends Storages {
                     P.proposer_address,
                     P.proposal_fee_address,
                     P.proposal_result
-                FROM proposal P
+                FROM proposal P 
                 LEFT OUTER JOIN proposal_metadata M
                 ON (P.proposal_id = M.proposal_id)
                 WHERE P.proposal_id = ?
@@ -4600,9 +4677,28 @@ export class LedgerStorage extends Storages {
         const urls = `
                 SELECT url
                 FROM proposal_attachments
-                WHERE proposal_id=?`;
+                WHERE proposal_id=?`
+
+        const total_votes = `
+                    SELECT 
+                        DISTINCT voter_address
+                    FROM ballots
+                    WHERE  proposal_id = ?
+                    `;
+        const vote_answer = `
+                    SELECT ballot_answer
+                    FROM ballots 
+                    WHERE proposal_id = ?
+                    AND voter_address = ?
+                    ORDER BY sequence DESC limit 1`;
+
+        const validators = `
+                    SELECT count(DISTINCT(address)) as total_validators
+                    FROM validators
+        `;
         const result: any = {};
-        return new Promise<any>((resolve, reject) => {
+        let totalValidators: any;
+        return new Promise<any>(async (resolve, reject) => {
             this.query(sql, [proposal_id.toString()])
                 .then((rows: any) => {
                     result.proposalData = rows;
@@ -4610,6 +4706,48 @@ export class LedgerStorage extends Storages {
                 })
                 .then((rows: any[]) => {
                     result.url = rows;
+                    return this.query(validators, []);
+                })
+                .then((data: any) => {
+                    totalValidators = data[0].total_validators;
+                    result.total_validators = totalValidators;
+                    return this.query(total_votes, [proposal_id.toString()]);
+                })
+                .then(async (rows: any[]) => {
+                    let yesCount = 0;
+                    let noCount = 0;
+                    let abstainCount = 0;
+                    for (let i = 0; i < rows.length; i++) {
+                        const ballot_answer = await this.query(vote_answer, [proposal_id.toString(), rows[i].voter_address]);
+                        switch (ballot_answer[0].ballot_answer) {
+                            case 0: {
+                                ++yesCount;
+                                break
+                            }
+                            case 1: {
+                                ++noCount;
+                                break
+                            }
+                            case 2: {
+                                ++abstainCount
+                                break
+                            }
+                            default:
+                                break;
+                        }
+                    }
+                    const votedCount = rows.length;
+                    const notVotedCount = totalValidators - votedCount;
+                    result.yes = yesCount;
+                    result.no = noCount;
+                    result.abstain = abstainCount;
+                    result.not_voted = notVotedCount;
+                    result.voted = votedCount;
+                    result.yes_percent = (yesCount / totalValidators) * 100;
+                    result.no_percent = (noCount / totalValidators) * 100;
+                    result.abstain_percent = abstainCount / totalValidators * 100;
+                    result.not_voted_percent = notVotedCount / totalValidators * 100;
+                    result.voted_percent = votedCount / totalValidators * 100;
                     resolve(result);
                 })
                 .catch(reject);
@@ -4810,9 +4948,9 @@ export class LedgerStorage extends Storages {
       * of the returned Promise is called with the records
       * and if an error occurs the `.catch` is called with an error.
       */
-    public getExchangeRate(): Promise<number> {
+    public getExchangeRate(currency: string): Promise<number> {
         return new Promise<number>((resolve, reject) => {
-            this.getCoinMarketcap()
+            this.getCoinMarketcap(currency)
                 .then((rows: any) => {
                     if (rows[0]) {
                         resolve(rows[0].price);

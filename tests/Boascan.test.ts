@@ -21,7 +21,7 @@ import { IDatabaseConfig } from "../src/modules/common/Config";
 import { Exchange } from "../src/modules/common/Exchange";
 import { CoinMarketService } from "../src/modules/service/CoinMarketService";
 import { VoteraService } from "../src/modules/service/VoteraService";
-import { IMarketCap, IMetaData, IPendingProposal, IProposal, IValidatorByBlock } from "../src/Types";
+import { CurrencyType, IMarketCap, IMetaData, IPendingProposal, IProposal, IValidatorByBlock } from "../src/Types";
 import { MockDBConfig } from "./TestConfig";
 import {
     FakeBlacklistMiddleware,
@@ -664,13 +664,14 @@ describe("Test of Stoa API Server", () => {
     });
 
     it("Test for putCoinMarketStats method", async () => {
-        const data: IMarketCap = await gecko_market.fetch();
+        const data: IMarketCap = await gecko_market.fetch(CurrencyType.USD);
         const response = await stoa_server.putCoinMarketStats(data);
         assert.deepStrictEqual(response.affectedRows, 1);
     });
 
     it("Test for /coinmarketcap", async () => {
-        const uri = URI(stoa_addr).directory("/coinmarketcap");
+        const uri = URI(stoa_addr).directory("/coinmarketcap")
+            .addSearch('currency', 'usd');
         const response = await client.get(uri.toString());
         const expected = {
             last_updated_at: 1622599176,
@@ -678,11 +679,15 @@ describe("Test of Stoa API Server", () => {
             market_cap: 72635724,
             vol_24h: 1835353,
             change_24h: -7,
+            currency: 'usd'
         };
         assert.deepStrictEqual(response.data, expected);
     });
     it("Test for /holders", async () => {
-        const uri = URI(stoa_addr).directory("/holders");
+        const uri = URI(stoa_addr).directory("/holders")
+            .addSearch('currency', 'usd')
+            .addSearch('page', '1')
+            .addSearch('pageSize', '10');
         const response = await client.get(uri.toString());
         const expected = [
             {
@@ -841,7 +846,8 @@ describe("Test of Stoa API Server", () => {
     it("Test for /holder/:address", async () => {
         const uri = URI(stoa_addr)
             .directory("/holder")
-            .filename("boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq");
+            .filename("boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq")
+            .addSearch('currency', 'usd');
         const response = await client.get(uri.toString());
         const expected = {
             address: "boa1xpfp00tr86d9zdgv3uy08qs0ld5s3wmx869yte68h3y4erteyn3wkq692jq",
@@ -936,13 +942,14 @@ describe("Test of Stoa API Server", () => {
         assert.deepStrictEqual(response.data, expected);
     });
 
-    it("Test for /convert-to-usd", async () => {
+    it("Test for /convert-to-currency", async () => {
         const uri = URI(stoa_addr)
-            .directory("/convert-to-usd")
-            .addSearch('amount', '1.23');
+            .directory("/convert-to-currency")
+            .addSearch('amount', '1.23')
+            .addSearch('currency', 'usd');
 
         const response = await client.get(uri.toString());
-        let expected = { amount: 1.23, USD: 0.294 }
+        let expected = { amount: 1.23, currency: 0.294 }
         assert.deepStrictEqual(response.data, expected);
     });
 
@@ -950,7 +957,7 @@ describe("Test of Stoa API Server", () => {
         let rate = 3450246;
         let Boa = 0.5;
         let exchange = new Exchange(rate);
-        let value = exchange.convertBoaToUsd(Boa);
+        let value = exchange.convertBoaToCurrency(Boa);
         assert.deepStrictEqual(value, rate * Boa);
     });
 
@@ -959,7 +966,7 @@ describe("Test of Stoa API Server", () => {
         let amount = new Amount(4880000000000000);
         let exchange = new Exchange(rate);
 
-        let value = exchange.convertAmountToUsd(amount);
+        let value = exchange.convertAmountToCurrency(amount);
         assert.deepStrictEqual(value, rate * 488000000);
     });
     it("Test of the path /boa-stats with circulating and reward", async () => {
