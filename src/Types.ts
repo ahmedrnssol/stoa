@@ -39,15 +39,33 @@ export class ValidatorData implements IValidator {
     address: string;
     enrolled_at: Height;
     stake: string;
+    block_height: number;
+    stake_amount: number;
+    agora_version: string;
+    slashed: number;
     preimage: IPreimage;
     full_count: number;
 
-    constructor(address: string, enrolled_at: Height, stake: string, full_count: number, preimage: IPreimage) {
+    constructor(
+        address: string,
+        enrolled_at: Height,
+        stake: string,
+        full_count: number,
+        slashed: number,
+        agora_version: string,
+        stake_amount: number,
+        block_height: number,
+        preimage: IPreimage
+    ) {
         this.address = address;
         this.enrolled_at = enrolled_at;
         this.stake = stake;
         this.full_count = full_count;
         this.preimage = preimage;
+        this.block_height = block_height;
+        this.stake_amount = stake_amount;
+        this.agora_version = agora_version;
+        this.slashed = slashed;
     }
 }
 
@@ -461,6 +479,11 @@ export interface IBlockEnrollment {
      * total number of records
      */
     full_count: number;
+
+    /**
+     * Validator cycle length
+     */
+    cycle_length: number;
 }
 
 /**

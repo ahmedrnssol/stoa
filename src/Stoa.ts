@@ -420,6 +420,10 @@ class Stoa extends WebService {
                         new Height(JSBI.BigInt(row.enrolled_at)),
                         new Hash(row.stake, Endian.Little).toString(),
                         row.full_count,
+                        row.slashed ? row.slashed : 0,
+                        '',
+                        row.stake_amount,
+                        row.block_height,
                         preimage,
                     );
                     out_put.push(validator);
@@ -492,7 +496,11 @@ class Stoa extends WebService {
                         new Height(JSBI.BigInt(row.enrolled_at)),
                         new Hash(row.stake, Endian.Little).toString(),
                         row.full_count,
-                        preimage
+                        row.slashed ? row.slashed : 0,
+                        '',
+                        row.stake_amount,
+                        row.block_height,
+                        preimage,
                     );
                     out_put.push(validator);
                 }
@@ -1359,6 +1367,7 @@ class Stoa extends WebService {
                             enroll_sig: new Hash(row.enroll_sig, Endian.Little).toString(),
                             commitment: new Hash(row.commitment, Endian.Little).toString(),
                             full_count: row.full_count,
+                            cycle_length: this.validator_cycle
                         });
                     }
                     return res.status(200).send(JSON.stringify(enrollmentElementList));
@@ -1425,7 +1434,7 @@ class Stoa extends WebService {
                             height: JSBI.BigInt(row.block_height).toString(),
                             tx_hash: new Hash(row.tx_hash, Endian.Little).toString(),
                             amount: row.amount,
-                            type: row.type,
+                            type: lodash.capitalize(ConvertTypes.TxTypeToString(row.receiver[0].type)),
                             fee: row.tx_fee,
                             size: row.tx_size,
                             time: row.time_stamp,

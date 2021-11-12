@@ -2422,13 +2422,13 @@ export class LedgerStorage extends Storages {
         let sql =
             `SELECT V.address,
                 V.enrolled_at,
-                V.address,
                 V.utxo_key,
                 V.utxo_key as stake,
                 V.amount as stake_amount,
                 P.block_height,
                 P.block_height as preimage_height,
                 P.preimage_hash,
+                V.slashed,
                 ` +
             cur_height +
             ` as height,
