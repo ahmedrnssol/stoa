@@ -1078,6 +1078,21 @@ export interface ITransactionFee {
      */
     low_currency: number;
 
+    /**
+    * The transaction delay with high fee
+    */
+    low_delay?: number;
+
+    /**
+     * The transaction delay with medium fee
+     */
+    medium_delay?: number;
+
+    /**
+     * The transaction delay with high fee
+     */
+    high_delay?: number;
+
 }
 
 /**
@@ -1334,7 +1349,7 @@ export interface IValidatorReward {
     /**
      * Total record count
      */
-    total_count: number;
+    full_count: number;
 }
 
 /**

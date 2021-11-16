@@ -272,6 +272,7 @@ class Stoa extends WebService {
         );
         this.app.get("/wallet/transaction/history/:address", isBlackList, this.getWalletTransactionHistory.bind(this));
         this.app.get("/wallet/transaction/overview/:hash", isBlackList, this.getWalletTransactionOverview.bind(this));
+        this.app.get("/wallet/transaction/pending/overview/:hash", isBlackList, this.getWalletPendingTransactionOverview.bind(this));
         this.app.get("/wallet/transaction/detail/:hash", isBlackList, this.getWalletTransactionDetail.bind(this));
         this.app.get(
             "/wallet/transactions/pending/:address",
@@ -580,20 +581,25 @@ class Stoa extends WebService {
             return;
         }
         const tx_size = Number(size);
+        const block_height = HeightManager.height.toString();
+
         this.ledger_storage
-            .getFeeMeanDisparity()
-            .then(async (value: number) => {
-                const fees = FeeManager.getTxFee(tx_size, value);
+            .getFeeMeanDisparity(Number(block_height))
+            .then(async (value: any) => {
+                const fees = FeeManager.getTxFee(tx_size, value.disparity);
                 let exchangeRate = await this.ledger_storage.getExchangeRate(currency);
                 let exchange = new Exchange(exchangeRate);
                 const data: ITransactionFee = {
                     tx_size,
                     high: fees[0].toString(),
                     high_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[0].toString()))),
+                    high_delay: value.high_delay ? value.high_delay : undefined,
                     medium: fees[1].toString(),
                     medium_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[1].toString()))),
+                    medium_delay: value.medium_delay ? value.medium_delay : undefined,
                     low: fees[2].toString(),
-                    low_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[2].toString())))
+                    low_currency: exchange.convertAmountToCurrency(new Amount(Number(fees[2].toString()))),
+                    low_delay: value.low_delay ? value.low_delay : undefined,
                 };
                 res.status(200).send(JSON.stringify(data));
             })
@@ -1112,7 +1118,7 @@ class Stoa extends WebService {
                     senders: [],
                     receivers: [],
                     fee: JSBI.add(JSBI.BigInt(data.tx[0].tx_fee), JSBI.BigInt(data.tx[0].payload_fee)).toString(),
-                    dataFee: JSBI.BigInt(data.tx[0].tx_fee).toString()
+                    dataFee: JSBI.BigInt(data.tx[0].payload_fee).toString()
                 };
 
                 for (const elem of data.senders)
@@ -1151,7 +1157,98 @@ class Stoa extends WebService {
     }
 
     /**
-     * GET /wallet/transaction/detail/:hash
+     * GET /wallet/transaction/pending/overview/:hash
+     *
+     * Called when a request is received through the `/transaction_overview/pending/:addresses` handler
+     * The parameter `hash` is the hash of the transaction
+     *
+     * Returns a transaction overview.
+     * @deprecated Use getWalletTransactionDetail
+     */
+    private getWalletPendingTransactionOverview(req: express.Request, res: express.Response) {
+        const txHash: string = String(req.params.hash);
+
+        let tx_hash: Hash;
+        try {
+            tx_hash = new Hash(txHash);
+        } catch (error) {
+            res.status(400).send(`Invalid value for parameter 'hash': ${txHash}`);
+            return;
+        }
+
+        this.ledger_storage
+            .getWalletPendingTransactionOverview(tx_hash)
+            .then((data: any) => {
+                if (
+                    data === undefined ||
+                    data.tx === undefined ||
+                    data.senders === undefined ||
+                    data.receivers === undefined
+                ) {
+                    res.status(500).send("Failed to data lookup");
+                    return;
+                }
+
+                if (data.tx.length === 0) {
+                    res.status(204).send(`The data does not exist. 'hash': (${tx_hash})`);
+                    return;
+                }
+
+                const overview: ITxOverview = {
+                    status: data.tx[0].status,
+                    height: JSBI.BigInt(data.tx[0].received_height).toString(),
+                    time: data.tx[0].time,
+                    tx_hash: new Hash(data.tx[0].tx_hash, Endian.Little).toString(),
+                    tx_type: lodash.capitalize(ConvertTypes.TxTypeToString(data.tx[0].type)),
+                    tx_size: data.tx[0].tx_size,
+                    unlock_height: JSBI.BigInt(0).toString(),
+                    lock_height: JSBI.BigInt(data.tx[0].lock_height).toString(),
+                    unlock_time: 0,
+                    payload: data.tx[0].payload !== null ? Buffer.byteLength(data.tx[0].payload).toString() : "",
+                    senders: [],
+                    receivers: [],
+                    fee: JSBI.add(JSBI.BigInt(data.tx[0].tx_fee), JSBI.BigInt(data.tx[0].payload_fee)).toString(),
+                    dataFee: JSBI.BigInt(data.tx[0].payload_fee).toString()
+                };
+
+                for (const elem of data.senders) {
+                    overview.senders.push({
+                        address: elem.address,
+                        amount: Number(elem.amount),
+                        utxo: new Hash(elem.utxo, Endian.Little).toString(),
+                        signature: '',
+                        index: elem.input_index,
+                        unlock_age: ConvertTypes.unlockAgeToString(elem.unlock_age),
+                        bytes: elem.unlock_bytes.toString("base64"),
+                    });
+                }
+
+                for (const elem of data.receivers)
+                    overview.receivers.push({
+                        type: elem.type,
+                        address: elem.address,
+                        lock_type: ConvertTypes.lockTypeToString(elem.lock_type),
+                        amount: elem.amount,
+                        utxo: '',
+                        index: elem.output_index,
+                        bytes: elem.lock_bytes.toString("base64"),
+                    });
+
+                res.status(200).send(JSON.stringify(overview));
+            })
+            .catch((err) => {
+                logger.error("Failed to data lookup to the DB: " + err, {
+                    operation: Operation.db,
+                    height: HeightManager.height.toString(),
+                    status: Status.Error,
+                    responseTime: Number(moment().utc().unix() * 1000),
+                });
+                res.status(500).send("Failed to data lookup");
+            });
+    }
+
+    /**
+     * GET /wallet/transaction/detail/:hash 
      *
      * Called when a request is received through the `/wallet/transaction/detail/:hash` handler
      * The parameter `hash` is the hash of the transaction
@@ -2317,7 +2414,6 @@ class Stoa extends WebService {
                 try {
                     const tx = Transaction.reviver("", stored_data.data);
                     const changes = await this.ledger_storage.putTransactionPool(tx);
-
                     if (changes) {
                         if (tx.inputs.length > 0) {
                             const tx_hash = hashFull(tx);
@@ -2326,6 +2422,7 @@ class Stoa extends WebService {
                             addresses.forEach((m) =>
                                 this.wallet_watcher.onTransactionAccountCreated(m.address, tx_hash, "pending")
                             );
+                            await this.emitPendingTransactions(tx, tx_hash);
                         }
                         logger.info(
                             `Saved a transaction hash : ${hashFull(tx).toString()}, ` + `data : ` + stored_data.data,
@@ -2348,6 +2445,32 @@ class Stoa extends WebService {
                     reject(err);
                 }
             }
+        });
+    }
+
+    // /**
+    //  * Stoa emit the pending transaction
+    //  * @param transaction
+    //  * @param tx_hash
+    //  * @returns
+    //  */
+    public emitPendingTransactions(tx: any, tx_hash: Hash) {
+        return new Promise<any>(async (resolve, reject) => {
+            let pendingTransaction = [{
+                tx_hash: tx_hash.toString(),
+                height: HeightManager.height.toString(),
+                time_stamp: moment.utc().unix(),
+                transaction: tx,
+                status: 'Pending'
+            }]
+            logger.info(`Emitted new Pending Transactions`, {
+                operation: Operation.block_sync,
+                height: HeightManager.height.toString(),
+                status: Status.Success,
+                responseTime: Number(moment().utc().unix() * 1000),
+            });
+            this.socket.io.emit(events.server.newTransaction, pendingTransaction);
+            return resolve(pendingTransaction);
         });
     }
 
@@ -2955,7 +3078,7 @@ class Stoa extends WebService {
         this.ledger_storage
             .getTransactionHash(utxo)
             .then((data: any) => {
-                if (data === undefined) {
+                if (data.length === 0) {
                     return res.status(500).send("Failed to data lookup");
                 } else {
                     const tx_hash = new Hash(data[0].tx_hash, Endian.Little).toString();
@@ -3116,7 +3239,7 @@ class Stoa extends WebService {
                             block_reward: row.total_reward,
                             block_fee: row.total_fee,
                             validator_reward: row.validator_reward,
-                            total_count: row.full_count,
+                            full_count: row.full_count,
                         });
                     }
                     return res.status(200).send(JSON.stringify(rewards));

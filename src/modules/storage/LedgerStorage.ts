@@ -363,6 +363,15 @@ export class LedgerStorage extends Storages {
             PRIMARY KEY (height)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+        CREATE TABLE IF NOT EXISTS fee_stats (
+            tx_hash     TINYBLOB   NOT NULL,
+            tx_time     INTEGER    NOT NULL,
+            tx_size     INTEGER    NOT NULL,
+            tx_fee      BIGINT(20) NOT NULL,
+            block_time  INTEGER,
+            PRIMARY KEY (tx_hash(64))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
         CREATE TABLE IF NOT EXISTS tx_pool
         (
             \`key\`     TINYBLOB    NOT NULL,
@@ -1562,13 +1571,35 @@ export class LedgerStorage extends Storages {
     /**
      * Gets the mean of disparity from the calculated transaction fee.
      */
-    public getFeeMeanDisparity(): Promise<number> {
+    public getFeeMeanDisparity(block_height: number): Promise<number> {
         return new Promise<number>((resolve, reject) => {
             const sql = `SELECT disparity FROM fee_mean_disparity ORDER BY height DESC LIMIT 1;`;
+            const tx_delay = `SELECT tx_time, tx_size, tx_fee, block_time
+                                FROM fee_stats
+                                ORDER BY block_time DESC
+                                LIMIT 100;`;
+            let result: any = {};
             this.query(sql, [])
-                .then((rows: any[]) => {
-                    if (rows.length > 0) resolve(rows[0].disparity);
-                    else resolve(0);
+                .then(async (rows: any[]) => {
+                    if (rows.length > 0) {
+                        result.disparity = rows[0].disparity;
+                        if (block_height > 100) {
+                            let fee_rows = await this.query(tx_delay, []);
+                            let delays: any = [];
+                            fee_rows.map(elem => {
+                                let tx_delay = bigDecimal.subtract(elem.block_time, elem.tx_time);
+                                delays.push(
+                                    tx_delay
+                                )
+                            });
+                            result.low_delay = Math.max(...delays);
+                            result.high_delay = Math.min(...delays);
+                            let medium = delays.reduce((a: any, b: any) => bigDecimal.add(a, b), 0);
+                            result.medium_delay = Number(bigDecimal.divide(medium, delays.length, 0))
+                        }
+                        resolve(result)
+                    }
+                    else { resolve(0); }
                 })
                 .catch((err) => {
                     reject(err);
@@ -1801,6 +1832,32 @@ export class LedgerStorage extends Storages {
      * is called with an error.
      */
     public putTransactions(block: Block, conn?: mysql.PoolConnection): Promise<void> {
+        function update_fee_stats(
+            storage: LedgerStorage,
+            tx_hash: Hash,
+            block_time: number
+        ): Promise<void> {
+            return new Promise<void>(async (resolve, reject) => {
+                storage
+                    .query(
+                        `UPDATE fee_stats
+                        SET block_time = ?
+                        where tx_hash = ?`,
+                        [
+                            block_time,
+                            tx_hash.toBinary(Endian.Little)
+                        ],
+                        conn
+                    )
+                    .then(() => {
+                        resolve();
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+
+            })
+        }
         function save_transaction(
             storage: LedgerStorage,
             height: Height,
@@ -2080,7 +2137,7 @@ export class LedgerStorage extends Storages {
                 try {
                     for (let tx_idx = 0; tx_idx < block.txs.length; tx_idx++) {
                         const melting = await is_melting(this, block.txs[tx_idx]);
-
+                        await update_fee_stats(this, block.merkle_tree[tx_idx], block.header.time_offset + this.genesis_timestamp)
                         await save_transaction(
                             this,
                             block.header.height,
@@ -2145,6 +2202,36 @@ export class LedgerStorage extends Storages {
      * is called with an error.
      */
     public putTransactionPool(tx: Transaction): Promise<number> {
+        function save_fee_stats(storage: LedgerStorage,
+            tx: Transaction,
+            hash: Hash,
+            conn: mysql.PoolConnection): Promise<Boolean> {
+            return new Promise<Boolean>(async (resolve, reject) => {
+                const fees = await storage.getTransactionFee(tx);
+                const tx_size = tx.getNumberOfBytes();
+                storage
+                    .query(
+                        `INSERT INTO fee_stats
+                        (tx_hash, tx_time, tx_size, tx_fee)
+                    VALUES
+                        (?, ?, ?, ?)`,
+                        [
+                            hash.toBinary(Endian.Little),
+                            moment().utc().unix(),
+                            tx_size,
+                            fees[1].toString(),
+                        ],
+                        conn
+                    )
+                    .then((result: any) => {
+                        resolve(true);
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+            })
+        }
+
         function save_transaction_pool(
             storage: LedgerStorage,
             tx: Transaction,
@@ -2286,6 +2373,7 @@ export class LedgerStorage extends Storages {
                         out_changes = await save_output_pool(this, hash, out_idx, tx.outputs[out_idx], conn);
                         if (out_changes !== 1) throw new Error("Failed to save a output on transactionPool.");
                     }
+                    await save_fee_stats(this, tx, hash, conn);
 
                     await this.commit(conn);
                     return resolve(tx_changes);
@@ -3506,6 +3594,72 @@ export class LedgerStorage extends Storages {
                 blocks B
                 INNER JOIN transactions T ON (B.height = T.block_height and T.tx_hash = ?)
                 INNER JOIN tx_outputs O ON (T.tx_hash = O.tx_hash);`;
+
+        const result: any = {};
+        return new Promise<any[]>((resolve, reject) => {
+            this.query(sql_tx, [hash])
+                .then((rows: any[]) => {
+                    result.tx = rows;
+                    return this.query(sql_sender, [hash]);
+                })
+                .then((rows: any[]) => {
+                    result.senders = rows;
+                    return this.query(sql_receiver, [hash]);
+                })
+                .then((rows: any[]) => {
+                    result.receivers = rows;
+                    resolve(result);
+                })
+                .catch(reject);
+        });
+    }
+
+    /**
+     * Provides a overview of a pending transaction.
+     * @param tx_hash The hash of the transaction
+     */
+    public getWalletPendingTransactionOverview(tx_hash: Hash): Promise<any[]> {
+        const hash = tx_hash.toBinary(Endian.Little);
+
+        const sql_tx = `SELECT 
+                        tx_hash,
+                        type,
+                        payload,
+                        lock_height,
+                        time,
+                        'Pending' as status,
+                        received_height,
+                        payload,
+                        tx_fee,
+                        payload_fee,
+                        tx_size
+                        FROM transaction_pool 
+                        WHERE tx_hash = ?`;
+
+        const sql_sender = `SELECT 
+                            O.address,
+                            SUM(O.amount) as amount, 
+                            I.tx_hash,
+                            I.input_index,
+                            I.utxo,
+                            I.unlock_bytes,
+                            I.unlock_age
+                            FROM
+                            tx_input_pool I
+                            INNER JOIN tx_output_pool O 
+                            ON(I.tx_hash = O.tx_hash)
+                            WHERE I.tx_hash = ? `;
+
+        const sql_receiver = `SELECT
+                            tx_hash,
+                            type,
+                            address,
+                            amount,
+                            output_index,
+                            lock_type,
+                            lock_bytes
+                            FROM tx_output_pool
+                            WHERE tx_hash = ?`
 
         const result: any = {};
         return new Promise<any[]>((resolve, reject) => {
@@ -5085,9 +5239,11 @@ export class LedgerStorage extends Storages {
 
         const sql = `SELECT
                 (SELECT IF(EXISTS (SELECT hash FROM blocks WHERE hash= ?), 1, 0)) as block,
-                (SELECT IF(EXISTS (SELECT tx_hash FROM transactions WHERE tx_hash= ?), 1, 0)) as transaction`;
+                (SELECT IF(EXISTS (SELECT tx_hash FROM transactions WHERE tx_hash= ?
+                UNION 
+                SELECT tx_hash FROM transaction_pool WHERE tx_hash=?), 1, 0)) as transaction`;
 
-        return this.query(sql, [hash, hash]);
+        return this.query(sql, [hash, hash, hash]);
     }
 
     /**
