@@ -12,6 +12,8 @@ export const isBlackList = async (req: Request, res: Response, next: NextFunctio
     const ipAddress = String(req.ip);
     console.log('IP WITH REQ.IP', ipAddress);
     console.log('IP WITH REQ.SOCKET.REMOTE_ADDRESS', req.socket.remoteAddress);
+    console.log('IP WITH REQ IPS', req.ips);
+    console.log('IP WITH REQ HEADER', req.headers['x-forwarded-for']);
 
     if (
         Logger.dbInstance === undefined ||
