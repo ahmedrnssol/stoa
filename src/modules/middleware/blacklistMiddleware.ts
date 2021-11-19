@@ -10,6 +10,8 @@ import moment from "moment";
  */
 export const isBlackList = async (req: Request, res: Response, next: NextFunction) => {
     const ipAddress = String(req.ip);
+    console.log('ip', ipAddress);
+
     if (
         Logger.dbInstance === undefined ||
         Logger.dbInstance.connection === undefined ||
