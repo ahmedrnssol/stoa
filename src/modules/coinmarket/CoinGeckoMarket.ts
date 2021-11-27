@@ -17,6 +17,7 @@ import { logger } from "../common/Logger";
 import { Operation, Status } from "../common/LogOperation";
 import moment from "moment";
 import { HeightManager } from "../common/HeightManager";
+import { mailer } from "../common/Mailer";
 export interface CoinMarket {
     /**
      * Method to ping the coin market
@@ -54,7 +55,8 @@ export class CoinGeckoMarket implements CoinMarket {
                         resolve(true);
                     }
                 })
-                .catch((err: any) => {
+                .catch(async (err: any) => {
+                    await mailer(Operation.coin_market_data_sync, err);
                     logger.error(`Stoa is unable to ping gecko coin market`, {
                         operation: Operation.coin_market_data_sync,
                         height: "",

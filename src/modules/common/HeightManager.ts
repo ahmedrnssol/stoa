@@ -16,6 +16,7 @@ import Stoa from "../../Stoa";
 import { logger } from "./Logger";
 import { Operation, Status } from "./LogOperation";
 import moment from "moment";
+import { mailer } from "./Mailer";
 export class HeightManager {
     /**
      * Stoa Block height
@@ -35,7 +36,8 @@ export class HeightManager {
                         resolve();
                     }
                 })
-                .catch((err) => {
+                .catch(async (err) => {
+                    await mailer(Operation.db, err);
                     logger.error("Failed to data lookup to the DB: " + err, {
                         operation: Operation.db,
                         height: HeightManager.height.toString(),

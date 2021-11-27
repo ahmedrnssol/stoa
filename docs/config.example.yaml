@@ -69,3 +69,17 @@ votera:
     # Endpoint of Agora
     votera_endpoint: http://dev-votera.bosagora.com:1337/
     
+################################################################################
+##                               Sendgrid config                              ##
+################################################################################
+sendgrid:
+    # Sendgrid API key
+    api_key: ""
+
+    # Sendgrid Email
+    email: ""
+
+    # Receiver Email
+    receiver_email: ""
+
+    

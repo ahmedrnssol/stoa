@@ -20,6 +20,7 @@ import { logger } from "../common/Logger";
 import { Operation, Status } from "../common/LogOperation";
 import { HeightManager } from "../common/HeightManager";
 import moment from "moment";
+import { mailer } from "../common/Mailer";
 
 export class VoteraService {
 
@@ -122,7 +123,8 @@ export class VoteraService {
                 this.votera.getProposalData(proposal.proposal_id).then((metadata) => {
                     logger.info(`Data fetched from votera: proposal_id(${proposal.proposal_id})`);
                     resolve(metadata);
-                }).catch((err) => {
+                }).catch(async (err) => {
+                    await mailer(Operation.votera_request, err);
                     reject(`Failed to request votera for proposal data: proposal_id(${proposal.proposal_id}) Err: ${err}`);
                     logger.error(`Failed to request votera for proposal data: ${err}`, {
                         operation: Operation.votera_request,
@@ -156,7 +158,8 @@ export class VoteraService {
                         logger.info(`Proposal metadata insertion success: proposal_id(${metadata.proposal_id})`);
                         resolve(true);
                     })
-                    .catch((err) => {
+                    .catch(async (err) => {
+                        await mailer(Operation.db, err);
                         reject(`Failed to put proposal metadata: proposal_id(${metadata.proposal_id}) Err: ${err}`);
                         logger.error(`Failed to put proposal metadata: proposal_id(${metadata.proposal_id}) Err: ${err}`, {
                             operation: Operation.votera_request,

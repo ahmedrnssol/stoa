@@ -64,6 +64,7 @@ import { FeeManager } from "../common/FeeManager";
 import { HeightManager } from "../common/HeightManager";
 import { logger } from "../common/Logger";
 import { Operation, Status } from "../common/LogOperation";
+import { mailer } from "../common/Mailer";
 import { Storages } from "./Storages";
 import { TransactionPool } from "./TransactionPool";
 
@@ -5241,6 +5242,72 @@ export class LedgerStorage extends Storages {
             block_height = ?`;
 
         return this.query(sql, [height.value.toString()]);
+    }
+
+    /**
+     * This method update the validators when block header is updated
+     * @param block_header The block header
+     * @returns Returns the Promise. If it is finished successfully the `.then`
+     * of the returned Promise is called with the block height
+     * and if an error occurs the `.catch` is called with an error.
+     */
+    public updateValidatorsByBlockheader(block_header: BlockHeader, conn?: mysql.PoolConnection): Promise<void> {
+        function update_validator(
+            storage: LedgerStorage,
+            height: Height,
+            validator: IValidator,
+            signed: SignStatus,
+        ): Promise<void> {
+            return new Promise<void>((resolve, reject) => {
+                storage
+                    .query(
+                        `UPDATE validator_by_block
+                            SET signed = ?
+                            WHERE block_height = ? and address = ?`,
+                        [
+                            signed,
+                            height.value,
+                            validator.address
+                        ],
+                        conn
+                    )
+                    .then(() => {
+                        resolve();
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+            });
+        }
+        return new Promise<void>((resolve, reject) => {
+            (async () => {
+                if (JSBI.equal(block_header.height.value, JSBI.BigInt(0))) {
+                    resolve();
+                    return;
+                }
+                const cycleValidators: any[] = await this.getValidatorsAPI(block_header.height, null, conn);
+
+                const bitMask = BitMask.fromString(block_header.validators.toString());
+                for (let i = 0; i < bitMask.length; i++) {
+                    if (bitMask.get(i))
+                        await update_validator(
+                            this,
+                            block_header.height,
+                            cycleValidators[i],
+                            SignStatus.SIGNED,
+                        );
+                    else {
+                        await update_validator(
+                            this,
+                            block_header.height,
+                            cycleValidators[i],
+                            SignStatus.UNSIGNED,
+                        );
+                    }
+                }
+                resolve();
+            })();
+        });
     }
 
     /**

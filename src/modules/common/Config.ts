@@ -51,6 +51,12 @@ export class Config implements IConfig {
     public votera?: VoteraConfig;
 
     /**
+     * Sendgrid config
+     */
+    public sendgrid: SendgridConfig;
+
+
+    /**
      * Constructor
      */
     constructor() {
@@ -59,6 +65,7 @@ export class Config implements IConfig {
         this.logging = new LoggingConfig();
         this.consensus = new ConsensusConfig();
         this.votera = new VoteraConfig();
+        this.sendgrid = new SendgridConfig();
     }
 
     /**
@@ -80,6 +87,7 @@ export class Config implements IConfig {
         this.database.readFromObject(cfg.database);
         this.logging.readFromObject(cfg.logging);
         this.consensus.readFromObject(cfg.consensus);
+        this.sendgrid.readFromObject(cfg.sendgrid);
         if (cfg.server.require_votera && cfg.votera) this.votera?.readFromObject(cfg.votera);
     }
 
@@ -510,6 +518,62 @@ export class VoteraConfig implements IVoteraConfig {
 }
 
 /**
+ * Sendgrid config
+ */
+export class SendgridConfig implements ISendgridConfig {
+    /**
+     * The API key 
+     */
+    api_key: string;
+
+    /**
+     * Email
+     */
+    email: string;
+
+    /**
+     * Receiver Email
+     */
+    receiver_email: string;
+
+    /**
+     * Constructor
+     * @param api_key The Sendgrid API key to which we bind
+     * @param email The eamil on which we bind
+     */
+    constructor() {
+        const defaults = SendgridConfig.defaultValue();
+        this.api_key = defaults.api_key;
+        this.email = defaults.email;
+        this.receiver_email = defaults.receiver_email;
+    }
+
+    /**
+     * Reads from Object
+     * @param config The object of ISendgridConfig
+     */
+    public readFromObject(config: ISendgridConfig) {
+        const conf = extend(true, {}, SendgridConfig.defaultValue());
+        extend(true, conf, config);
+
+        this.api_key = conf.api_key;
+        this.email = conf.email;
+        this.receiver_email = conf.receiver_email;
+    }
+
+    /**
+     * Returns default value
+     */
+    public static defaultValue(): ISendgridConfig {
+        return {
+            api_key: '',
+            email: '',
+            receiver_email: '',
+        };
+    }
+}
+
+/**
  * The interface of server config
  */
 export interface IServerConfig {
@@ -668,6 +732,11 @@ export interface IConfig {
      * Votera config
      */
     votera?: IVoteraConfig;
+
+    /**
+     * Sendgrid config
+     */
+    sendgrid: ISendgridConfig
 }
 
 /**
@@ -688,4 +757,24 @@ export interface IVoteraConfig {
      * The endpoint of votera
      */
     votera_endpoint: URL;
+}
+
+/**
+ * The interface of Sendgrid
+ */
+export interface ISendgridConfig {
+    /**
+     * The Sendgrid API key
+     */
+    api_key: string;
+
+    /**
+     * Email
+     */
+    email: string;
+
+    /**
+     * Receiver Email
+     */
+    receiver_email: string;
 }

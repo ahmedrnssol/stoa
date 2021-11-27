@@ -17,6 +17,7 @@ import * as mysql from "mysql2";
 import { IDatabaseConfig } from "../common/Config";
 import { logger, Logger } from "../common/Logger";
 import { Operation } from "../common/LogOperation";
+import { mailer } from "../common/Mailer";
 
 export class Storages {
     /**
@@ -151,6 +152,7 @@ export class Storages {
                 if (!conn) connection = await this.getConnection();
                 else connection = conn;
             } catch (err) {
+                await mailer(Operation.db, err);
                 return reject(err);
             }
             connection.query(sql, params, (err: Error | null, rows: any[]) => {
@@ -176,6 +178,7 @@ export class Storages {
                 if (!conn) connection = await this.getConnection();
                 else connection = conn;
             } catch (err) {
+                await mailer(Operation.db, err);
                 return reject(err);
             }
             connection.query(sql, (err: Error | null, rows: any[]) => {
@@ -218,9 +221,12 @@ export class Storages {
      */
     protected commit(conn: mysql.PoolConnection): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            conn.commit((err: Error | null) => {
+            conn.commit(async (err: Error | null) => {
                 if (err == null) resolve();
-                else reject(err);
+                else {
+                    await mailer(Operation.db, err);
+                    reject(err)
+                };
             });
         });
     }
